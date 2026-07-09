@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Duel Album">
+<meta name="theme-color" content="#0a0e27">
+<meta name="description" content="Ouvre des boosters Yu-Gi-Oh! en français, collectionne toutes les cartes des personnages Duel Monsters, GX et 5D's.">
+<meta name="format-detection" content="telephone=no">
+<title>Duel Album — Yu-Gi-Oh! FR</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg-deep:#0a0e27; --bg-mid:#171233;
+  --gold:#f0c14b; --gold-2:#ffe89a;
+  /* Nouvelles couleurs de rareté : vert < bleu < violet < jaune < rouge */
+  --rar-common:#4ade80;  /* Commune - vert */
+  --rar-rare:#3b82f6;    /* Rare    - bleu */
+  --rar-super:#a855f7;   /* Super   - violet */
+  --rar-ultra:#facc15;   /* Ultra   - jaune */
+  --rar-secret:#ef4444;  /* Secret  - rouge */
+  /* Alias legacy (pour code existant) */
+  --rare-blue:var(--rar-rare); --rare-purple:var(--rar-super);
+  --common-grey:var(--rar-common); --secret-1:var(--rar-secret); --secret-2:var(--rar-secret);
+  --panel:rgba(255,255,255,0.04); --panel-border:rgba(255,255,255,0.09);
+  --danger:#ff6b6b; --ok:#5cd0ff;
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{
+  margin:0; padding:0; height:100%; width:100%;
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  font-family:'Segoe UI', system-ui, sans-serif;
+  background:radial-gradient(circle at 50% -10%, #241a52 0%, var(--bg-deep) 55%, #05060f 100%);
+  color:#f2f1fb; overflow:hidden;
+}
+.display-font{ font-family:Georgia,'Times New Roman',serif; letter-spacing:.5px; }
+.screen{ display:none; }
+.screen.active{ display:flex; flex-direction:column; align-items:center; height:100vh; width:100vw; position:relative; }
+
+/* ---------- HUD ---------- */
+.player-hud{
+  position:absolute; top:10px; left:10px; right:10px;
+  display:flex; gap:8px; align-items:center; justify-content:space-between;
+  z-index:6; pointer-events:none;
+}
+.player-hud > *{ pointer-events:auto; }
+.hud-badge{
+  display:flex; align-items:center; gap:6px;
+  background:rgba(0,0,0,0.35); border:1px solid var(--panel-border);
+  border-radius:20px; padding:6px 10px; font-size:12px; font-weight:700;
+  backdrop-filter:blur(6px);
+}
+.hud-badge .lvl{ background:var(--gold); color:#241a00; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:11px; }
+.hud-badge.gems{ color:#d5b3ff; }
+.hud-badge.coins{ color:var(--gold-2); }
+.hud-badge .ico{ font-size:14px; }
+
+/* ---------- FRENCH CARD FRAME ---------- */
+.fr-card{
+  width:100%; height:100%; border-radius:12px; overflow:hidden;
+  display:flex; flex-direction:column; padding:5px 6px 6px;
+  font-family:Georgia,'Times New Roman',serif; color:#0a0a0a;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,0.35);
+  background:#efd577; position:relative;
+}
+.fr-card.f-normal{ background:linear-gradient(180deg,#f4de85,#dcbf5c); }
+.fr-card.f-effect{ background:linear-gradient(180deg,#e2a26a,#c47a3d); }
+.fr-card.f-ritual{ background:linear-gradient(180deg,#a8c0e4,#7a95bd); }
+.fr-card.f-fusion{ background:linear-gradient(180deg,#b294ce,#84639f); }
+.fr-card.f-synchro{ background:linear-gradient(180deg,#f5f5f5,#c5c5c5); }
+.fr-card.f-xyz{ background:linear-gradient(180deg,#3d3d3d,#0d0d0d); color:#f6f6f6; }
+.fr-card.f-xyz .fr-artbox{ border-color:#111; }
+.fr-card.f-xyz .fr-typebar, .fr-card.f-xyz .fr-desc, .fr-card.f-xyz .fr-stats{ color:#f6f6f6; border-color:rgba(255,255,255,0.35); }
+.fr-card.f-link{ background:linear-gradient(180deg,#5a7db8,#2c4e85); color:#fff; }
+.fr-card.f-link .fr-typebar, .fr-card.f-link .fr-desc, .fr-card.f-link .fr-stats{ color:#fff; }
+.fr-card.f-spell{ background:linear-gradient(180deg,#5cc6ac,#2f8a71); color:#fff; }
+.fr-card.f-spell .fr-typebar, .fr-card.f-spell .fr-desc, .fr-card.f-spell .fr-stats{ color:#fff; }
+.fr-card.f-trap{ background:linear-gradient(180deg,#d288a8,#a15477); color:#fff; }
+.fr-card.f-trap .fr-typebar, .fr-card.f-trap .fr-desc, .fr-card.f-trap .fr-stats{ color:#fff; }
+.fr-header{ display:flex; align-items:center; gap:4px; padding:2px 4px 0; min-height:22px; }
+.fr-name{ flex:1; font-weight:800; font-size:15px; line-height:1.05; letter-spacing:.2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fr-attribute{ font-size:9px; font-weight:800; background:rgba(0,0,0,0.35); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+.fr-level{ padding:1px 4px; font-size:10px; color:#c8891a; letter-spacing:.5px; min-height:12px; }
+.fr-card.f-xyz .fr-level, .fr-card.f-link .fr-level, .fr-card.f-spell .fr-level, .fr-card.f-trap .fr-level{ color:#ffd; }
+.fr-artbox{ flex:1; margin:2px 4px; border:1px solid rgba(0,0,0,0.55); background:#111; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height:0; }
+.fr-artbox img{ width:100%; height:100%; object-fit:cover; }
+.fr-typebar{ margin:3px 4px 0; font-size:9px; font-weight:800; letter-spacing:.4px; color:#3a2600; padding:2px 0; border-top:1px solid rgba(0,0,0,0.4); text-transform:uppercase; }
+.fr-desc{ margin:0 4px; font-size:9px; line-height:1.25; color:#221800; padding:2px 4px; height:34px; overflow:hidden; }
+.fr-stats{ margin:2px 4px 0; padding-top:2px; border-top:1px solid rgba(0,0,0,0.4); font-size:10px; font-weight:800; text-align:right; letter-spacing:.5px; color:#3a2600; }
+.fr-attr-LUMIÈRE{ background:#e5c045 !important; color:#3a2600 !important; }
+.fr-attr-TÉNÈBRES{ background:#4a2a6d !important; }
+.fr-attr-FEU{ background:#c74234 !important; }
+.fr-attr-EAU{ background:#3d84c8 !important; }
+.fr-attr-VENT{ background:#4aa87a !important; }
+.fr-attr-TERRE{ background:#7a5a2e !important; }
+.fr-attr-DIVIN{ background:#c8a545 !important; }
+
+/* ---------- QUESTS & STEPS PANELS ---------- */
+.home-panels{ width:100%; max-width:400px; margin:10px auto 0; display:flex; flex-direction:column; gap:8px; }
+.panel-card{
+  background:rgba(255,255,255,0.05); border:1px solid var(--panel-border);
+  border-radius:14px; padding:10px 12px; backdrop-filter:blur(4px);
+}
+.panel-title{ display:flex; align-items:center; justify-content:space-between; font-size:11px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+.panel-title .badge-count{ background:var(--gold); color:#241a00; padding:1px 8px; border-radius:10px; font-size:10px; }
+.quest-row{ display:flex; align-items:center; gap:8px; padding:5px 0; }
+.quest-row + .quest-row{ border-top:1px dashed rgba(255,255,255,0.08); }
+.quest-info{ flex:1; min-width:0; }
+.quest-label{ font-size:12px; color:#e6dfff; font-weight:600; }
+.quest-progress{ display:flex; align-items:center; gap:6px; margin-top:3px; font-size:10px; color:#9d97c9; }
+.quest-progress .qbar{ flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,0.08); overflow:hidden; }
+.quest-progress .qfill{ height:100%; background:linear-gradient(90deg,var(--rare-purple),var(--gold)); transition:width .4s; }
+.quest-reward{ font-size:11px; font-weight:800; color:var(--gold-2); white-space:nowrap; }
+.quest-reward .r-pack{ background:linear-gradient(135deg,#5cd0ff,#4a9a8a); color:#001a20; padding:2px 6px; border-radius:8px; }
+.quest-claim{ background:linear-gradient(135deg,var(--gold),#c88a19); color:#241a00; border:none; padding:5px 10px; border-radius:12px; font-size:10px; font-weight:800; cursor:pointer; text-transform:uppercase; }
+.quest-row.done .quest-label{ color:#8d87b8; text-decoration:line-through; }
+
+.step-bar-wrap{ display:flex; align-items:center; gap:10px; }
+.step-icon{ font-size:22px; }
+.step-info{ flex:1; }
+.step-label{ display:flex; justify-content:space-between; font-size:11px; color:#c9c4ee; margin-bottom:4px; }
+.step-progress{ height:6px; border-radius:4px; background:rgba(255,255,255,0.08); overflow:hidden; }
+.step-fill{ height:100%; background:linear-gradient(90deg,#5cd0ff,var(--gold)); transition:width .4s; }
+.step-free-badge{ background:linear-gradient(135deg,#5cd0ff,#4a9a8a); color:#003; padding:3px 8px; border-radius:12px; font-size:10px; font-weight:800; margin-left:4px; }
+.enable-motion-btn{
+  background:linear-gradient(135deg,#5cd0ff,#4a9a8a); color:#001a20; border:none;
+  padding:6px 12px; border-radius:14px; font-size:11px; font-weight:800; cursor:pointer;
+  margin-top:6px;
+}
+.free-badge-home{
+  position:absolute; top:56px; right:-8px;
+  background:linear-gradient(135deg,#5cd0ff,#4a9a8a);
+  color:#001a20; font-size:10px; font-weight:800;
+  padding:3px 8px 3px 10px; border-radius:12px 0 0 12px;
+  z-index:5; box-shadow:0 4px 10px rgba(0,0,0,0.4);
+}
+
+/* ---------- MODALS ---------- */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(4,4,12,0.94);
+  display:none; align-items:center; justify-content:center;
+  z-index:60; padding:20px;
+}
+.modal-overlay.show{ display:flex; }
+.modal-box{
+  background:linear-gradient(160deg, #1c1440, #0a0e27);
+  border:1.5px solid rgba(240,193,75,0.35);
+  border-radius:18px; padding:22px 20px 18px;
+  max-width:360px; width:100%;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px -12px rgba(240,193,75,0.4);
+  text-align:center; position:relative;
+}
+.modal-title{
+  font-family:Georgia,serif; font-weight:800; font-size:19px;
+  background:linear-gradient(90deg, var(--gold), #fff8dd, var(--gold));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  margin-bottom:8px;
+}
+.modal-sub{ font-size:12px; color:#b8b3de; margin-bottom:14px; }
+.streak-row{ display:flex; gap:5px; justify-content:center; margin:12px 0; }
+.streak-day{
+  flex:1; padding:8px 4px; border-radius:10px;
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  font-size:9px; letter-spacing:.5px;
+}
+.streak-day.done{ background:linear-gradient(160deg, rgba(240,193,75,0.25), rgba(240,193,75,0.05)); border-color:rgba(240,193,75,0.4); opacity:.85; }
+.streak-day.today{ background:linear-gradient(160deg, var(--rare-purple), #5f3fa8); border-color:var(--gold); box-shadow:0 0 16px rgba(177,123,255,0.6); transform:scale(1.1); }
+.streak-day .sd-day{ font-weight:800; color:#e6dfff; }
+.streak-day .sd-icon{ font-size:14px; }
+.streak-day .sd-val{ font-size:9px; color:#f0c14b; font-weight:800; }
+.modal-btn{
+  background:linear-gradient(135deg,var(--gold),#c88a19);
+  color:#241a00; border:none;
+  padding:12px 22px; border-radius:24px;
+  font-size:13px; font-weight:800; letter-spacing:1px;
+  cursor:pointer; margin-top:8px; text-transform:uppercase;
+  width:100%;
+}
+
+/* ---------- DUPE CONVERT (lightbox) ---------- */
+.convert-btn{
+  display:block; width:100%; margin-top:10px;
+  padding:10px 16px; border-radius:14px;
+  background:linear-gradient(135deg,#5cd0ff,#a06ff0);
+  color:#001a20; border:none;
+  font-size:12px; font-weight:800; letter-spacing:.5px;
+  cursor:pointer; text-transform:uppercase;
+}
+.convert-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+/* ---------- DECK BUILDER ---------- */
+#deckBuilder{ justify-content:flex-start; width:100%; align-items:stretch !important; }
+.db-header{ background:linear-gradient(180deg, rgba(10,14,39,0.98), rgba(10,14,39,0.85)); padding:12px 14px 8px; }
+.db-title{ font-size:15px; font-weight:800; color:#fff; }
+.db-sub{ font-size:11px; color:#b8b3de; margin-top:2px; }
+.db-stats{ display:flex; gap:8px; margin-top:6px; }
+.db-stat{ background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; color:#e6dfff; }
+.db-stat.ok{ background:linear-gradient(135deg,#3fa87a,#2e8a5a); color:#fff; }
+.db-stat.warn{ background:linear-gradient(135deg,#c74234,#8e2a20); color:#fff; }
+.db-actions{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.db-btn{
+  flex:1 1 auto; padding:8px 12px; border-radius:14px;
+  background:rgba(255,255,255,0.06); border:1px solid var(--panel-border);
+  color:#f2f1fb; font-size:11px; font-weight:800; cursor:pointer;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.db-btn.primary{ background:linear-gradient(135deg,var(--gold),#c88a19); color:#241a00; border:none; }
+.db-current{ padding:8px 12px; background:rgba(255,255,255,0.03); border-top:1px solid var(--panel-border); border-bottom:1px solid var(--panel-border); min-height:110px; }
+.db-current-title{ font-size:11px; color:#8d87b8; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.db-current-grid{ display:grid; grid-template-columns:repeat(6, 1fr); gap:4px; }
+.db-slot{ aspect-ratio:59/86; border-radius:6px; overflow:hidden; background:rgba(255,255,255,0.04); border:1px dashed rgba(255,255,255,0.08); position:relative; cursor:pointer; }
+.db-slot img{ width:100%; height:100%; object-fit:cover; }
+.db-slot .rem{ position:absolute; top:2px; right:2px; width:14px; height:14px; background:rgba(220,50,50,0.85); color:#fff; border-radius:50%; font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:800; }
+.db-slot.empty{ background:repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 6px, transparent 6px 12px); }
+.db-collection{ flex:1; overflow-y:auto; padding:6px 12px 30px; }
+.db-col-title{ font-size:11px; color:#8d87b8; letter-spacing:1px; text-transform:uppercase; padding:6px 0; position:sticky; top:0; background:rgba(10,14,39,0.9); z-index:2; }
+.db-col-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+.db-col-card{ position:relative; border-radius:8px; overflow:hidden; cursor:pointer; }
+.db-col-card img{ width:100%; aspect-ratio:59/86; object-fit:cover; }
+.db-col-card .own{ position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,0.65); color:#fff; font-size:9px; font-weight:800; padding:1px 5px; border-radius:5px; }
+.db-col-card .in-deck{ position:absolute; top:2px; left:2px; background:var(--gold); color:#241a00; font-size:9px; font-weight:800; padding:1px 5px; border-radius:5px; }
+.db-col-card.maxed{ opacity:.35; }
+.db-empty{ text-align:center; color:#8d87b8; padding:30px 0; font-size:12px; }
+
+/* ---------- SAVED DECKS LIST ---------- */
+.saved-deck-item{
+  display:flex; gap:10px; align-items:center; padding:10px 12px;
+  background:rgba(255,255,255,0.04); border:1px solid var(--panel-border);
+  border-radius:12px; margin-bottom:8px;
+}
+.saved-deck-item .sd-name{ flex:1; font-weight:700; color:#f2f1fb; font-size:13px; }
+.saved-deck-item .sd-count{ font-size:11px; color:#9d97c9; }
+.saved-deck-item .sd-actions{ display:flex; gap:4px; }
+.saved-deck-item button{ padding:6px 10px; border-radius:10px; font-size:10px; font-weight:800; cursor:pointer; border:none; }
+.saved-deck-item .sd-load{ background:var(--gold); color:#241a00; }
+.saved-deck-item .sd-del{ background:rgba(220,50,50,0.7); color:#fff; }
+
+/* ---------- CHARACTER SELECTOR ---------- */
+.char-strip{
+  width:100%; max-width:440px; margin:8px auto 0;
+  display:flex; gap:8px; overflow-x:auto; overflow-y:hidden;
+  padding:6px 4px 10px; scrollbar-width:none;
+}
+.char-strip::-webkit-scrollbar{ display:none; }
+.char-card{
+  flex:0 0 auto; width:64px; padding:6px 4px 8px;
+  border-radius:12px; border:1.5px solid transparent;
+  background:rgba(255,255,255,0.04); cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  transition:transform .2s, background .2s, border-color .2s;
+  position:relative;
+}
+.char-card:active{ transform:scale(.94); }
+.char-card.active{
+  background:rgba(255,255,255,0.08);
+  border-color:var(--charColor, var(--gold));
+  box-shadow:0 6px 18px -6px var(--charColor, var(--gold));
+}
+.char-avatar{
+  width:44px; height:44px; border-radius:50%;
+  background:linear-gradient(135deg, var(--charColor, var(--gold)), rgba(0,0,0,0.4));
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; box-shadow:inset 0 -3px 6px rgba(0,0,0,0.35);
+  border:2px solid rgba(255,255,255,0.15);
+}
+.char-name{ font-size:10px; font-weight:800; letter-spacing:.3px; color:#e6dfff; text-align:center; white-space:nowrap; }
+.char-count{ font-size:9px; color:#8d87b8; }
+.char-card.locked .char-avatar{ filter:grayscale(1) brightness(.55); }
+.char-card.locked .char-name, .char-card.locked .char-count{ color:#5a557f; }
+
+.pack-caption-char{ position:absolute; top:12px; font-size:10px; letter-spacing:2px; color:rgba(255,255,255,0.75); text-transform:uppercase; font-weight:800; }
+.pack-hero-avatar{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:118px; height:118px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:56px; overflow:hidden;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.35), var(--charColor, var(--gold)) 55%, rgba(0,0,0,0.55) 100%);
+  box-shadow:0 0 24px 4px var(--charColor, var(--gold)), inset 0 -6px 12px rgba(0,0,0,0.35);
+  border:3px solid rgba(255,255,255,0.25);
+  z-index:2;
+}
+.pack-hero-avatar .ph-img{
+  position:absolute; inset:0; width:100%; height:100%;
+  background-size:cover; background-position:center 18%; background-repeat:no-repeat;
+  border-radius:50%; z-index:2;
+}
+.pack-hero-avatar .ph-emoji{ position:relative; z-index:1; }
+.pack-hero-name{
+  position:absolute; bottom:44px; left:0; right:0;
+  text-align:center; font-family:Georgia,serif;
+  font-size:20px; font-weight:800; letter-spacing:1.5px;
+  color:#fff; text-shadow:0 2px 8px rgba(0,0,0,0.7);
+  z-index:2;
+}
+
+/* ---------- DECK PICKER ---------- */
+#deckPicker{ justify-content:flex-start; width:100%; align-items:stretch !important; background:radial-gradient(circle at 50% 0%, rgba(177,123,255,0.08) 0%, transparent 60%); }
+.dp-grid{
+  display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;
+  padding:12px; width:100%; overflow-y:auto; flex:1;
+  align-self:stretch;
+}
+.dp-item{
+  border-radius:14px; padding:12px 8px 10px;
+  background:linear-gradient(160deg, rgba(255,255,255,0.06), rgba(0,0,0,0.4));
+  border:1.5px solid rgba(255,255,255,0.08);
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  cursor:pointer; position:relative; min-width:0;
+  height:220px;
+  transition:transform .2s, border-color .2s, box-shadow .2s;
+  overflow:hidden;
+}
+.dp-item::before{
+  content:""; position:absolute; inset:-1px;
+  background:linear-gradient(160deg, var(--charColor, transparent) 0%, transparent 45%);
+  opacity:.14; pointer-events:none; border-radius:inherit;
+}
+.dp-item:active{ transform:scale(.97); }
+.dp-item.active{
+  border-color:var(--charColor, var(--gold));
+  box-shadow:0 10px 22px -10px var(--charColor, var(--gold)), 0 0 0 1px var(--charColor);
+}
+.dp-item.active::before{ opacity:.28; }
+.dp-item.complete{
+  border-color:var(--gold);
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 22px -2px var(--gold),
+    inset 0 0 26px -6px rgba(240,193,75,0.35);
+  animation:dp-complete-pulse 2.6s ease-in-out infinite;
+}
+.dp-item.complete::before{
+  background:linear-gradient(160deg, rgba(240,193,75,0.4) 0%, transparent 55%);
+  opacity:1;
+}
+.dp-item.complete .dp-avatar{
+  border-color:var(--gold);
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,0.35), 0 0 18px -2px var(--gold);
+}
+.dp-item.complete .dp-name{ color:var(--gold-2); text-shadow:0 0 8px rgba(240,193,75,0.6); }
+@keyframes dp-complete-pulse{
+  0%,100%{ box-shadow:0 0 0 2px var(--gold), 0 0 22px -2px var(--gold), inset 0 0 26px -6px rgba(240,193,75,0.35); }
+  50%{ box-shadow:0 0 0 2px var(--gold), 0 0 34px 0 var(--gold), inset 0 0 26px -6px rgba(240,193,75,0.55); }
+}
+.dp-complete-badge{
+  position:absolute; top:6px; right:6px; z-index:4;
+  background:linear-gradient(135deg, var(--gold), var(--gold-2));
+  color:#241a00; font-size:9px; font-weight:900;
+  padding:3px 7px; border-radius:9px; letter-spacing:.6px;
+  box-shadow:0 3px 10px -2px rgba(240,193,75,0.7);
+  pointer-events:none;
+}
+.dp-item .dp-avatar{
+  width:96px; height:96px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.2), var(--charColor, var(--gold)) 60%, rgba(0,0,0,0.55) 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:34px; border:3px solid var(--charColor, rgba(255,255,255,0.25));
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,0.35), 0 6px 16px -4px var(--charColor, var(--gold));
+  margin-top:6px; overflow:hidden; position:relative;
+}
+.dp-item .dp-avatar-img{
+  position:absolute; inset:0; width:100%; height:100%;
+  background-size:cover; background-position:center 18%; background-repeat:no-repeat;
+  border-radius:50%;
+  image-rendering:auto;
+}
+.dp-item .dp-avatar-img.loaded + .dp-avatar-emoji{ display:none; }
+.dp-item .dp-avatar-emoji{ position:relative; z-index:2; }
+.dp-name{ font-family:Georgia,serif; font-weight:800; font-size:14px; letter-spacing:.3px; color:#f2f1fb; text-align:center; margin-top:2px; }
+.dp-count{ font-size:9px; color:#9d97c9; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
+.dp-check{
+  position:absolute; top:6px; left:6px; width:20px; height:20px; border-radius:50%;
+  background:var(--charColor, var(--gold)); color:#111;
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800;
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);
+}
+.dp-mini-album{
+  margin-top:auto; padding:5px 12px; border-radius:14px;
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1);
+  color:#e6dfff; font-size:10px; font-weight:800; letter-spacing:.6px;
+  cursor:pointer; text-transform:uppercase; transition:background .15s;
+}
+.dp-mini-album:hover, .dp-mini-album:active{ background:rgba(255,255,255,0.16); }
+.dp-section-title{
+  grid-column:1 / -1; font-size:11px; letter-spacing:2px; text-transform:uppercase;
+  color:#b8b3de; font-weight:800; padding:12px 4px 2px;
+  display:flex; align-items:center; gap:8px;
+}
+.dp-section-title::before, .dp-section-title::after{
+  content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+}
+
+/* ---------- ALBUM SORT ---------- */
+.sort-row{ display:flex; gap:6px; padding:0 12px 6px; align-items:center; }
+.sort-label{ font-size:10px; color:#8d87b8; letter-spacing:1px; text-transform:uppercase; font-weight:700; }
+.sort-select{
+  flex:1; padding:6px 10px; border-radius:14px;
+  background:rgba(255,255,255,0.06); border:1px solid var(--panel-border);
+  color:#f2f1fb; font-size:11px; font-weight:700; outline:none;
+  appearance:none; -webkit-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23b8b3de' fill='none' stroke-width='1.5'/></svg>");
+  background-repeat:no-repeat; background-position:right 12px center; padding-right:28px;
+}
+
+/* ---------- HOME ---------- */
+#home{ justify-content:flex-start; padding:52px 14px 16px; overflow-y:hidden; overflow-x:hidden; }
+#home::-webkit-scrollbar{ width:0; }
+
+/* ---------- FAB QUÊTES ---------- */
+.fab-quests{
+  position:fixed; right:16px; bottom:18px; z-index:40;
+  width:58px; height:58px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #fff2c4, var(--gold) 55%, #7a5b12 100%);
+  border:2px solid rgba(255,255,255,0.35);
+  color:#241a00; font-size:24px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 10px 24px -6px rgba(0,0,0,0.7), 0 0 22px -4px rgba(240,193,75,0.6);
+  animation:fab-pulse 2.6s ease-in-out infinite;
+  transition:transform .15s ease;
+}
+.fab-quests:active{ transform:scale(.92); }
+.fab-quests .fab-icon{ line-height:1; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+.fab-dot{
+  position:absolute; top:-4px; right:-4px; min-width:22px; height:22px; padding:0 6px;
+  border-radius:11px; background:linear-gradient(135deg,#ff4d6d,#c9184a);
+  color:#fff; font-size:11px; font-weight:800;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid #0f0a24; box-shadow:0 2px 8px rgba(201,24,74,0.6);
+  animation:fab-dot-bounce 1.4s ease-in-out infinite;
+}
+@keyframes fab-pulse{
+  0%,100%{ box-shadow:0 10px 24px -6px rgba(0,0,0,0.7), 0 0 22px -4px rgba(240,193,75,0.6); }
+  50%{ box-shadow:0 10px 24px -6px rgba(0,0,0,0.7), 0 0 34px -2px rgba(240,193,75,0.95); }
+}
+@keyframes fab-dot-bounce{
+  0%,100%{ transform:translateY(0) scale(1); }
+  50%{ transform:translateY(-2px) scale(1.08); }
+}
+
+/* ---------- QUÊTES SCREEN ---------- */
+#questsScreen{ padding:54px 14px 100px; justify-content:flex-start; overflow-y:auto; }
+.quests-screen-body{ width:100%; max-width:460px; margin:14px auto 0; display:flex; flex-direction:column; gap:12px; }
+
+.home-header{ width:100%; text-align:center; padding-top:2px; }
+.home-title{
+  font-size:28px; font-weight:800; margin:0;
+  background:linear-gradient(90deg,var(--gold),#fff8dd,var(--gold));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.home-sub{ font-size:11px; color:#9d97c9; margin-top:4px; letter-spacing:2px; text-transform:uppercase; }
+.progress-wrap{ width:88%; max-width:360px; margin:18px auto 0; }
+.progress-label{ display:flex; justify-content:space-between; font-size:11px; color:#b8b3de; margin-bottom:5px; }
+.progress-bar{ height:8px; border-radius:6px; background:rgba(255,255,255,0.08); overflow:hidden; border:1px solid var(--panel-border); }
+.progress-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg,var(--rare-purple),var(--gold)); transition:width .6s ease; }
+
+#lastPack{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px; min-height:70px; }
+.mini-card{ width:46px; height:66px; border-radius:6px; background-size:cover; background-position:center; border:1.5px solid var(--panel-border); position:relative; }
+.mini-card.new::after{ content:"new"; position:absolute; top:-7px; right:-6px; background:var(--gold); color:#241a00; font-size:8px; font-weight:800; padding:1px 4px; border-radius:5px; text-transform:uppercase; }
+
+.pack-zone{ width:100%; display:flex; align-items:center; justify-content:center; padding:16px 0; }
+.pack{
+  width:170px; height:240px; border-radius:16px;
+  background:linear-gradient(145deg,#2b1f5e,#120c2c 60%, #05040c);
+  border:2px solid rgba(240,193,75,0.5);
+  box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset, 0 18px 40px -12px rgba(0,0,0,0.7), 0 0 30px -6px rgba(177,123,255,0.35);
+  cursor:pointer; position:relative; display:flex; align-items:center; justify-content:center;
+  animation:pack-float 3.2s ease-in-out infinite;
+  overflow:hidden;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+}
+.pack::before{ content:""; position:absolute; inset:10px; border-radius:11px; border:1px solid rgba(240,193,75,0.35); pointer-events:none; z-index:3; }
+.pack.has-set-img::before{ display:none; }
+.pack.has-set-img{ background-color:#000; background-size:cover; background-position:center 15%; }
+.pack.has-set-img .pack-hero-avatar{ opacity:0; }
+.pack.has-set-img .pack-caption-char{ background:rgba(0,0,0,0.55); padding:4px 10px; border-radius:10px; }
+.pack.has-set-img .pack-hero-name{ background:linear-gradient(180deg, transparent, rgba(0,0,0,0.85)); padding:14px 6px 6px; bottom:32px; }
+.pack.has-set-img .pack-caption{ background:rgba(0,0,0,0.65); padding:3px 8px; border-radius:8px; color:rgba(255,255,255,0.9); }
+.pack.has-set-img .pack-emblem{ display:none; }
+.pack-emblem{ width:70px; height:70px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff2c4, var(--gold) 55%, #7a5b12 100%); box-shadow:0 0 18px 2px rgba(240,193,75,0.5); }
+.pack-caption{ position:absolute; bottom:16px; font-size:11px; letter-spacing:2px; color:rgba(255,255,255,0.55); text-transform:uppercase; z-index:4; }
+@keyframes pack-float{ 0%,100%{ transform:translateY(0) rotate(0); } 50%{ transform:translateY(-10px) rotate(1.2deg); } }
+.pack.shaking{ animation:pack-shake .5s ease; }
+@keyframes pack-shake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px) rotate(-2deg)} 40%{transform:translateX(7px) rotate(2deg)} 60%{transform:translateX(-6px) rotate(-1.5deg)} 80%{transform:translateX(5px) rotate(1.5deg)} }
+
+/* Pack opening animations */
+.pack.opening-rip{ animation:pack-rip 1.2s cubic-bezier(.5,.05,.4,1) forwards; }
+@keyframes pack-rip{
+  0%{ clip-path:inset(0 0 0 0); transform:translateY(0) rotate(0); filter:brightness(1); }
+  30%{ clip-path:inset(0 0 0 0); transform:translateY(-6px) rotate(-1deg); filter:brightness(1.2); box-shadow:0 0 60px 20px rgba(240,193,75,0.6); }
+  55%{ clip-path:inset(28% 0 0 0); transform:translateY(-10px) rotate(1deg); filter:brightness(1.6); }
+  100%{ clip-path:inset(80% 0 0 0); transform:translateY(-40px) scale(1.05); filter:brightness(2.5); opacity:0; }
+}
+.pack.opening-slide{ animation:pack-slide 1.1s cubic-bezier(.6,.05,.3,1) forwards; }
+@keyframes pack-slide{
+  0%{ transform:translateY(0) rotate(0); opacity:1; filter:brightness(1); }
+  35%{ transform:translateY(-14px) rotate(-3deg); filter:brightness(1.3); box-shadow:0 0 70px 24px rgba(240,193,75,0.5); }
+  100%{ transform:translateY(500px) rotate(-14deg) scale(.7); opacity:0; filter:brightness(2); }
+}
+.pack.opening-burst{ animation:pack-burst 1.0s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes pack-burst{
+  0%{ transform:scale(1); opacity:1; filter:brightness(1); }
+  25%{ transform:scale(1.15) rotate(2deg); filter:brightness(1.4); box-shadow:0 0 80px 30px rgba(240,193,75,0.7); }
+  50%{ transform:scale(1.25) rotate(-2deg); filter:brightness(2); box-shadow:0 0 120px 60px rgba(255,255,255,0.8); }
+  100%{ transform:scale(2.2) rotate(6deg); opacity:0; filter:brightness(4); }
+}
+.pack-flash{
+  position:fixed; inset:0; background:radial-gradient(circle at center, rgba(255,255,255,0.95), rgba(240,193,75,0.4) 40%, transparent 70%);
+  z-index:55; pointer-events:none; opacity:0;
+}
+.pack-flash.show{ animation:pack-flash-anim .9s ease-out forwards; }
+@keyframes pack-flash-anim{
+  0%{ opacity:0; }
+  40%{ opacity:1; }
+  100%{ opacity:0; }
+}
+
+.bottom-nav{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.nav-btn{
+  padding:12px 20px; border-radius:24px; border:1px solid var(--panel-border);
+  background:var(--panel); color:#f2f1fb; font-size:13px; font-weight:700;
+  cursor:pointer; transition:transform .1s ease, background .2s;
+}
+.nav-btn:active{ transform:scale(.96); }
+.nav-btn.primary{ background:linear-gradient(135deg,var(--gold),#c88a19); color:#241a00; border:none; }
+.nav-btn.secondary{ background:linear-gradient(135deg,#5f3fa8,#a06ff0); border:none; color:#fff; }
+.nav-btn:disabled{ opacity:.45; cursor:not-allowed; }
+.pack-price{ font-size:10px; opacity:.85; margin-left:6px; }
+
+/* ---------- OPENING ---------- */
+#opening{ justify-content:space-between; padding:26px 0 34px; }
+.opening-hint{ color:#b8b3de; font-size:12px; letter-spacing:1px; text-align:center; min-height:16px; }
+.stage{ flex:1; width:100%; display:flex; align-items:center; justify-content:center; position:relative; perspective:1200px; }
+.card3d{ width:230px; height:330px; position:relative; transform-style:preserve-3d; transition:transform .65s cubic-bezier(.2,.8,.2,1); cursor:pointer; }
+.card3d.flipped{ transform:rotateY(180deg); }
+.face{ position:absolute; inset:0; border-radius:14px; backface-visibility:hidden; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.face-back{
+  background:#000000;
+}
+.face-back .cardback-img{ width:100%; height:100%; object-fit:cover; display:block; }
+.face-front{ transform:rotateY(180deg); background:#111; border:2px solid rgba(255,255,255,0.15); }
+.face-front img{ width:100%; height:100%; object-fit:cover; }
+.face-front .fallback{ color:#eee; font-size:13px; text-align:center; padding:12px; }
+.rar-Commune{ box-shadow:0 0 0 rgba(0,0,0,0); }
+.rar-Commune .face-front{ box-shadow:0 0 20px 3px rgba(74,222,128,0.45); }
+.rar-Rare .face-front{ box-shadow:0 0 26px 4px rgba(59,130,246,0.6); }
+.rar-Super .face-front{ box-shadow:0 0 30px 6px rgba(168,85,247,0.7); }
+.rar-Ultra .face-front{ box-shadow:0 0 34px 8px rgba(250,204,21,0.8); }
+.rar-Secret .face-front{ box-shadow:0 0 40px 10px rgba(239,68,68,0.7); }
+
+/* MEGA REVEAL — rare cards shake + halo */
+.card3d.flipped.mega-reveal{ animation:card-mega-shake .9s cubic-bezier(.3,.8,.3,1) .35s; }
+@keyframes card-mega-shake{
+  0%,100%{ transform:rotateY(180deg) translate(0,0); }
+  15%{ transform:rotateY(180deg) translate(-6px,-3px) rotate(-1.5deg); }
+  30%{ transform:rotateY(180deg) translate(7px,2px) rotate(1.8deg); }
+  45%{ transform:rotateY(180deg) translate(-5px,3px) rotate(-1deg); }
+  60%{ transform:rotateY(180deg) translate(6px,-2px) rotate(1.4deg); }
+  75%{ transform:rotateY(180deg) translate(-3px,1px) rotate(-.6deg); }
+}
+.card-halo{
+  position:absolute; inset:-60px; border-radius:50%;
+  background:radial-gradient(circle at center, rgba(255,255,255,0.65) 0%, rgba(240,193,75,0.45) 25%, transparent 60%);
+  opacity:0; pointer-events:none; z-index:0; filter:blur(4px);
+  transform:rotateY(180deg);
+}
+.card-halo.rar-Ultra{ background:radial-gradient(circle at center, rgba(255,255,255,0.7) 0%, rgba(250,204,21,0.75) 25%, transparent 60%); }
+.card-halo.rar-Secret{ background:radial-gradient(circle at center, rgba(255,255,255,0.85) 0%, rgba(239,68,68,0.7) 30%, rgba(168,85,247,0.4) 55%, transparent 75%); }
+.card-halo.show{ animation:halo-pulse 1.6s ease-in-out .4s; }
+@keyframes halo-pulse{
+  0%{ opacity:0; transform:rotateY(180deg) scale(.4); }
+  25%{ opacity:1; transform:rotateY(180deg) scale(1.1); }
+  60%{ opacity:.9; transform:rotateY(180deg) scale(1); }
+  100%{ opacity:0; transform:rotateY(180deg) scale(1.4); }
+}
+.reveal-flash{
+  position:fixed; inset:0; z-index:45; pointer-events:none;
+  background:radial-gradient(circle at center, rgba(255,255,255,0.95), rgba(240,193,75,0.5) 35%, transparent 65%);
+  opacity:0;
+}
+.reveal-flash.show{ animation:reveal-flash-anim .8s ease-out forwards; }
+.reveal-flash.rar-Secret{ background:radial-gradient(circle at center, rgba(255,255,255,0.9), rgba(239,68,68,0.6) 30%, rgba(168,85,247,0.35) 55%, transparent 70%); }
+@keyframes reveal-flash-anim{
+  0%{ opacity:0; }
+  30%{ opacity:1; }
+  100%{ opacity:0; }
+}
+.holo{ position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:0; }
+.rar-Super .holo, .rar-Ultra .holo, .rar-Secret .holo{ opacity:.55; background:linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.55) 40%, rgba(177,123,255,0.5) 50%, transparent 65%); background-size:250% 250%; animation:holo-sweep 2.2s linear infinite; }
+.rar-Secret .holo{ background:conic-gradient(from 0deg, var(--secret-1), var(--secret-2), var(--gold), var(--secret-1)); opacity:.35; animation:holo-spin 3.5s linear infinite; }
+@keyframes holo-sweep{ 0%{background-position:0 0} 100%{background-position:200% 200%} }
+@keyframes holo-spin{ 0%{filter:hue-rotate(0)} 100%{filter:hue-rotate(360deg)} }
+
+.ribbon{ position:absolute; top:-28px; left:50%; transform:translateX(-50%) rotateY(180deg) scale(0); background:linear-gradient(90deg,var(--gold),#fff3cf,var(--gold)); color:#2a1e00; font-weight:800; font-size:12px; letter-spacing:1.5px; padding:5px 14px; border-radius:20px; text-transform:uppercase; box-shadow:0 4px 14px rgba(240,193,75,0.5); z-index:5; pointer-events:none; }
+.ribbon.show{ animation:ribbon-pop .5s cubic-bezier(.3,1.6,.4,1) forwards; }
+@keyframes ribbon-pop{ 0%{transform:translateX(-50%) rotateY(180deg) scale(0) rotate(-8deg)} 70%{transform:translateX(-50%) rotateY(180deg) scale(1.15) rotate(3deg)} 100%{transform:translateX(-50%) rotateY(180deg) scale(1) rotate(0)} }
+.dupe-badge{ position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.65); border:1px solid rgba(255,255,255,0.35); color:#fff; font-size:12px; font-weight:800; padding:4px 10px; border-radius:12px; z-index:5; transform:rotateY(180deg); pointer-events:none; letter-spacing:.5px; }
+.rarity-tag{ margin-top:10px; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#c9c4ee; text-align:center; }
+.rarity-tag.Commune{ color:var(--rar-common); }
+.rarity-tag.Rare{ color:var(--rar-rare); }
+.rarity-tag.Super{ color:var(--rar-super); }
+.rarity-tag.Ultra{ color:var(--rar-ultra); text-shadow:0 0 8px rgba(250,204,21,0.5); }
+.rarity-tag.Secret{ color:var(--rar-secret); text-shadow:0 0 10px rgba(239,68,68,0.6); }
+.particles{ position:absolute; inset:0; pointer-events:none; overflow:visible; }
+.spark{ position:absolute; width:5px; height:5px; border-radius:50%; background:var(--gold); top:50%; left:50%; opacity:0; }
+.spark.go{ animation:spark-fly .9s ease-out forwards; }
+@keyframes spark-fly{ 0%{opacity:1; transform:translate(0,0) scale(1)} 100%{opacity:0; transform:translate(var(--dx), var(--dy)) scale(.2)} }
+.card-count{ font-size:12px; color:#8d87b8; text-align:center; }
+
+.skip-btn{
+  position:absolute; top:14px; right:14px;
+  background:rgba(0,0,0,0.4); border:1px solid var(--panel-border);
+  color:#b8b3de; font-size:11px; letter-spacing:1px;
+  padding:6px 12px; border-radius:20px; cursor:pointer; z-index:6;
+}
+
+/* ---------- SUMMARY ---------- */
+#summaryScreen{ justify-content:center; padding:26px 20px; gap:14px; }
+.summary-title{ font-size:20px; font-weight:800; color:var(--gold); text-align:center; }
+.summary-sub{ font-size:12px; color:#b8b3de; text-align:center; }
+.summary-grid{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:520px; }
+.summary-card{ width:66px; height:96px; border-radius:8px; background-size:cover; background-position:center; position:relative; border:2px solid rgba(255,255,255,0.15); }
+.summary-card.new{ border-color:var(--gold); box-shadow:0 0 12px rgba(240,193,75,0.5); }
+.summary-card.new::after{ content:"new"; position:absolute; top:-7px; left:50%; transform:translateX(-50%); background:var(--gold); color:#241a00; font-size:8px; font-weight:800; padding:1px 5px; border-radius:8px; text-transform:uppercase; }
+.rewards-line{ display:flex; gap:14px; justify-content:center; font-size:13px; color:#e6dfff; }
+.rewards-line b{ color:var(--gold); }
+
+/* ---------- ALBUM ---------- */
+#albumScreen{ justify-content:flex-start; width:100%; }
+.album-header{
+  width:100%; padding:14px 12px 8px; display:flex; align-items:center; gap:10px;
+  background:linear-gradient(180deg, rgba(10,14,39,0.98), rgba(10,14,39,0.85));
+  position:sticky; top:0; z-index:3;
+}
+.icon-btn{ width:36px; height:36px; border-radius:50%; border:1px solid var(--panel-border); background:var(--panel); color:#f2f1fb; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.album-title{ font-size:15px; font-weight:800; }
+.album-header .col{ flex:1; }
+.album-tools{
+  width:100%; padding:8px 12px; display:flex; flex-direction:column; gap:8px;
+  background:rgba(10,14,39,0.75); position:sticky; top:58px; z-index:2;
+  border-bottom:1px solid var(--panel-border); flex-shrink:0;
+}
+.chip-row{ display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding-bottom:2px; scrollbar-width:none; align-items:center; height:38px; min-height:38px; }
+.chip-row::-webkit-scrollbar{ display:none; }
+.filter-chip{ flex:0 0 auto; }
+.search-input{
+  width:100%; padding:8px 12px; border-radius:20px;
+  background:rgba(255,255,255,0.06); border:1px solid var(--panel-border);
+  color:#f2f1fb; font-size:12px; outline:none;
+}
+.search-input::placeholder{ color:#7d78a8; }
+.filter-chip{ flex:0 0 auto; width:auto; height:30px; line-height:1; display:inline-flex; align-items:center; padding:0 14px; border-radius:20px; border:1px solid var(--panel-border); background:var(--panel); color:#b8b3de; font-size:11px; font-weight:700; cursor:pointer; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+.filter-chip.active{ background:linear-gradient(135deg,var(--rar-super),#5f3fa8); color:#fff; border-color:transparent; }
+.filter-chip.active[data-rar="Commune"]{ background:linear-gradient(135deg,var(--rar-common),#16a34a); }
+.filter-chip.active[data-rar="Rare"]{ background:linear-gradient(135deg,var(--rar-rare),#1d4ed8); }
+.filter-chip.active[data-rar="Super"]{ background:linear-gradient(135deg,var(--rar-super),#7e22ce); }
+.filter-chip.active[data-rar="Ultra"]{ background:linear-gradient(135deg,var(--rar-ultra),#ca8a04); color:#241a00; }
+.filter-chip.active[data-rar="Secret"]{ background:linear-gradient(135deg,var(--rar-secret),#b91c1c); }
+
+#albumGrid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; padding:8px 12px 30px; width:100%; overflow-y:auto; flex:1; }
+.cardMini{ position:relative; border-radius:9px; overflow:hidden; cursor:pointer; }
+.cardMini img{ width:100%; display:block; aspect-ratio:59/86; object-fit:cover; }
+.cardMini .count{ position:absolute; bottom:3px; right:3px; background:rgba(0,0,0,0.6); color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:6px; }
+.cardMini .rar-dot{ position:absolute; top:4px; left:4px; width:10px; height:10px; border-radius:50%; box-shadow:0 0 6px currentColor; }
+.rar-dot.Commune{ color:var(--rar-common); background:var(--rar-common); }
+.rar-dot.Rare{ color:var(--rar-rare); background:var(--rar-rare); }
+.rar-dot.Super{ color:var(--rar-super); background:var(--rar-super); }
+.rar-dot.Ultra{ color:var(--rar-ultra); background:var(--rar-ultra); }
+.rar-dot.Secret{ color:var(--rar-secret); background:var(--rar-secret); }
+.lock{ aspect-ratio:59/86; border-radius:9px; background:repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 8px, rgba(255,255,255,0.01) 8px 16px), #171233; border:1px solid var(--panel-border); position:relative; }
+.lock::after{ content:"?"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#5a557f; font-size:22px; font-weight:800; }
+
+/* Lightbox */
+#lightbox{ position:fixed; inset:0; background:rgba(4,4,12,0.92); display:none; align-items:center; justify-content:center; z-index:50; flex-direction:column; gap:10px; padding:20px; overflow-y:auto; }
+#lightbox.show{ display:flex; }
+#lightbox img{ width:min(66vw,260px); border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.6); }
+#lightbox .lb-name{ color:#fff; font-size:16px; font-weight:800; text-align:center; padding:0 12px; }
+.card-info{
+  width:min(92vw,420px); background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px 14px;
+  font-size:13px; line-height:1.5; color:#ddd;
+}
+.card-info hr{ border:none; border-top:1px solid rgba(255,255,255,0.2); margin:8px 0; }
+.card-info p{ margin:4px 0; }
+.card-info .desc{ color:#c3bee6; font-size:12px; }
+.card-info .stat-row{ display:flex; gap:14px; margin-top:6px; }
+.stat-badge{ background:rgba(0,0,0,0.35); padding:4px 8px; border-radius:8px; font-size:12px; font-weight:700; }
+.close-x{ position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.5); border:1px solid var(--panel-border); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+
+.hidden-el{ display:none !important; }
+.loading-note{ color:#8d87b8; font-size:12px; margin-top:10px; text-align:center; }
+
+.toast{
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:rgba(20,15,45,0.95); border:1px solid var(--gold);
+  color:var(--gold-2); padding:10px 18px; border-radius:20px;
+  font-size:13px; font-weight:700; z-index:70; opacity:0;
+  transition:opacity .3s, transform .3s;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* Rarity legend row */
+.legend{ display:flex; gap:10px; justify-content:center; margin-top:6px; font-size:10px; color:#8d87b8; flex-wrap:wrap; }
+.legend span{ display:flex; align-items:center; gap:4px; }
+.legend i{ width:8px; height:8px; border-radius:50%; }
+.legend b{ color:#e6dfff; font-weight:800; letter-spacing:.3px; }
+.rarity-odds{ color:var(--gold); font-weight:700; font-size:12px; letter-spacing:.3px; }
+.chip-odds{ font-size:9px; font-weight:800; opacity:.75; margin-left:3px; }
+.filter-chip.active .chip-odds{ opacity:1; }
+
+</style>
+</head>
+<body>
+
+<div class="pack-flash" id="packFlash"></div>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+  <div class="player-hud">
+    <div class="hud-badge" data-testid="hud-level">
+      <span class="lvl" id="hudLvl">1</span>
+      <span id="hudXp">0/100 xp</span>
+    </div>
+    <div style="display:flex; gap:6px;">
+      <div class="hud-badge gems" data-testid="hud-gems"><span class="ico">💎</span><span id="hudGems">0</span></div>
+    </div>
+  </div>
+
+  <div class="home-header">
+    <p class="home-title display-font">Yu Gi Oh</p>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="progressCount" data-testid="progress-count">0 / 0 cartes</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div class="legend" data-testid="rarity-legend">
+      <span><i style="background:var(--rar-common)"></i>Commune</span>
+      <span><i style="background:var(--rar-rare)"></i>Rare</span>
+      <span><i style="background:var(--rar-super)"></i>Super</span>
+      <span><i style="background:var(--rar-ultra)"></i>Ultra</span>
+      <span><i style="background:var(--rar-secret)"></i>Secret</span>
+    </div>
+  </div>
+
+  <div class="home-panels">
+    <div class="panel-card" data-testid="panel-steps">
+      <div class="panel-title">
+        <span>🚶‍♂️ Pas du jour</span>
+        <span id="stepsFreeInfo" class="step-free-badge hidden-el">0 booster gratuit</span>
+      </div>
+      <div class="step-bar-wrap">
+        <div class="step-icon">👟</div>
+        <div class="step-info">
+          <div class="step-label"><span id="stepsCount">0 pas</span><span>5 000 pas → +1 🎁</span></div>
+          <div class="step-progress"><div class="step-fill" id="stepsFill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <button id="enableMotionBtn" class="enable-motion-btn hidden-el" onclick="enableMotion()" data-testid="enable-motion">Activer le compteur de pas</button>
+    </div>
+  </div>
+
+  <div class="pack-zone">
+    <div class="pack" id="packEl" data-testid="pack-open" onclick="openDeckPicker()">
+      <div class="pack-emblem"></div>
+      <div class="pack-caption">Toucher pour choisir un deck</div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" style="margin-top:14px; padding-bottom:8px;">
+    <button class="nav-btn primary" data-testid="open-x1" onclick="startOpening(1)">
+      Ouvrir <span class="pack-price">💎50</span>
+    </button>
+    <button class="nav-btn secondary" data-testid="open-x10" onclick="startOpening(10)">
+      Ouvrir ×10 <span class="pack-price">💎400</span>
+    </button>
+    <button class="nav-btn" data-testid="btn-album" onclick="openDeckPicker('album')">📖 Album</button>
+    <button class="nav-btn" data-testid="btn-deckbuilder" onclick="openDeckBuilder()">🃏 Deck Builder</button>
+  </div>
+  <div class="loading-note" id="loadingNote">Chargement des cartes…</div>
+
+  <!-- FAB Quêtes -->
+  <button class="fab-quests" id="fabQuests" data-testid="fab-quests" onclick="openQuestsScreen()" aria-label="Quêtes du jour">
+    <span class="fab-icon">🎯</span>
+    <span class="fab-dot hidden-el" id="fabQuestsDot">0</span>
+  </button>
+</div>
+
+<!-- QUESTS SCREEN -->
+<div id="questsScreen" class="screen">
+  <div class="album-header">
+    <button class="icon-btn" onclick="goTo('home')" data-testid="qs-back">⬅</button>
+    <div class="col">
+      <div class="album-title">Quêtes du jour</div>
+      <div style="font-size:11px; color:#b8b3de; margin-top:2px;">Rotées toutes les 24h · <span id="questsDoneBadge">0/0</span></div>
+    </div>
+  </div>
+  <div class="quests-screen-body">
+    <div class="panel-card">
+      <div class="panel-title"><span>🎯 Missions</span></div>
+      <div id="questsList"></div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-title"><span>🔥 Connexion quotidienne</span></div>
+      <div class="streak-row" id="streakRowScreen"></div>
+      <div style="font-size:11px; color:#b8b3de; text-align:center; margin-top:4px;">Reviens chaque jour pour agrandir ton streak !</div>
+    </div>
+  </div>
+</div>
+
+<!-- OPENING -->
+<div id="opening" class="screen">
+  <div class="reveal-flash" id="revealFlash"></div>
+  <button class="skip-btn" data-testid="skip-reveals" onclick="skipReveals()">Tout révéler ⏭</button>
+  <p class="opening-hint" id="openingHint">Touche la carte pour la révéler</p>
+  <div class="stage">
+    <div class="particles" id="particles"></div>
+    <div class="card3d" id="card3d" onclick="handleCardTap()" data-testid="reveal-card">
+      <div class="card-halo" id="cardHalo"></div>
+      <div class="ribbon" id="ribbon">new</div>
+      <div class="face face-back"><img src="IMG_0502.jpeg" alt="dos de carte" class="cardback-img"></div>
+      <div class="face face-front" id="faceFront"></div>
+      <div class="dupe-badge hidden-el" id="dupeBadge"></div>
+    </div>
+  </div>
+  <div class="rarity-tag" id="rarityTag"></div>
+  <div class="card-count" id="cardCount">Carte 1 / 5</div>
+</div>
+
+<!-- SUMMARY -->
+<div id="summaryScreen" class="screen">
+  <p class="summary-title display-font">Booster ouvert !</p>
+  <p class="summary-sub" id="summarySub"></p>
+  <div class="summary-grid" id="summaryGrid"></div>
+  <div class="rewards-line" id="rewardsLine"></div>
+  <button class="nav-btn primary" data-testid="btn-continue" onclick="finishPack()">Continuer</button>
+</div>
+
+<!-- ALBUM -->
+<div id="albumScreen" class="screen">
+  <div class="album-header">
+    <button class="icon-btn" onclick="backFromAlbum()" data-testid="btn-back">⬅</button>
+    <div class="col">
+      <div class="album-title">Album</div>
+      <div class="progress-bar" style="margin-top:5px;"><div class="progress-fill" id="albumProgressFill" style="width:0%"></div></div>
+    </div>
+    <div id="albumProgressText" style="font-size:11px;color:#b8b3de;">0/0</div>
+  </div>
+  <div class="album-tools">
+    <input id="searchInput" data-testid="album-search" class="search-input" placeholder="🔎 Rechercher une carte…" oninput="renderAlbum()">
+    <div class="chip-row">
+      <button class="filter-chip active" data-rar="all" onclick="setRarityFilter('all', this)" data-testid="filter-all">Tout</button>
+      <button class="filter-chip" data-rar="Commune" onclick="setRarityFilter('Commune', this)">Commune</button>
+      <button class="filter-chip" data-rar="Rare" onclick="setRarityFilter('Rare', this)">Rare</button>
+      <button class="filter-chip" data-rar="Super" onclick="setRarityFilter('Super', this)">Super</button>
+      <button class="filter-chip" data-rar="Ultra" onclick="setRarityFilter('Ultra', this)">Ultra</button>
+      <button class="filter-chip" data-rar="Secret" onclick="setRarityFilter('Secret', this)">Secret</button>
+      <button class="filter-chip" data-rar="owned" onclick="setRarityFilter('owned', this)" data-testid="filter-owned">Possédées</button>
+    </div>
+  </div>
+  <div class="sort-row">
+    <span class="sort-label">Trier :</span>
+    <select class="sort-select" id="albumSortSelect" data-testid="album-sort" onchange="setAlbumSort(this.value)">
+      <option value="rarity-desc">Rareté ↓ (plus rare d'abord)</option>
+      <option value="rarity-asc">Rareté ↑ (moins rare d'abord)</option>
+      <option value="recent">Récentes (obtenues en dernier)</option>
+      <option value="oldest">Anciennes (obtenues en premier)</option>
+      <option value="name">Nom (A → Z)</option>
+    </select>
+  </div>
+  <div id="albumGrid"></div>
+</div>
+
+<!-- DECK PICKER -->
+<div id="deckPicker" class="screen">
+  <div class="album-header">
+    <button class="icon-btn" onclick="goTo('home')" data-testid="dp-back">⬅</button>
+    <div class="col">
+      <div class="album-title">Choisis un deck</div>
+      <div style="font-size:11px; color:#b8b3de; margin-top:2px;">Le booster ne contiendra que des cartes de ce personnage</div>
+    </div>
+  </div>
+  <div class="dp-grid" id="dpGrid"></div>
+</div>
+
+<!-- DECK BUILDER -->
+<div id="deckBuilder" class="screen">
+  <div class="album-header db-header">
+    <button class="icon-btn" onclick="goTo('home')" data-testid="db-back">⬅</button>
+    <div class="col">
+      <div class="db-title" id="dbCurrentName">Nouveau deck</div>
+      <div class="db-stats">
+        <div class="db-stat" id="dbCount">0/40 cartes</div>
+        <div class="db-stat" id="dbMax">Max 60</div>
+      </div>
+    </div>
+    <button class="icon-btn" onclick="openSavedDecks()" data-testid="db-saved">📚</button>
+  </div>
+  <div class="db-actions" style="padding:6px 12px 0;">
+    <button class="db-btn" onclick="clearDeck()" data-testid="db-clear">Vider</button>
+    <button class="db-btn primary" onclick="saveCurrentDeck()" data-testid="db-save">💾 Sauvegarder</button>
+  </div>
+  <div class="db-current">
+    <div class="db-current-title" id="dbCurrentTitle">Deck en cours</div>
+    <div class="db-current-grid" id="dbCurrentGrid"></div>
+  </div>
+  <div class="db-collection">
+    <div class="db-col-title">Ta collection (touche pour ajouter, max 3 par carte)</div>
+    <div class="db-col-grid" id="dbCollectionGrid"></div>
+  </div>
+</div>
+
+<!-- SAVED DECKS -->
+<div id="savedDecks" class="screen">
+  <div class="album-header">
+    <button class="icon-btn" onclick="goTo('deckBuilder')" data-testid="sd-back">⬅</button>
+    <div class="col">
+      <div class="album-title">Mes decks</div>
+      <div style="font-size:11px; color:#b8b3de;">Charge un deck pour le modifier</div>
+    </div>
+  </div>
+  <div style="padding:12px; overflow-y:auto; flex:1;" id="savedDecksList"></div>
+</div>
+
+<!-- DAILY REWARD MODAL -->
+<div id="dailyModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" data-testid="daily-title">Récompense quotidienne</div>
+    <div class="modal-sub" id="dailyStreakSub">Jour 1 de ta série</div>
+    <div class="streak-row" id="dailyStreakRow"></div>
+    <div style="font-size:13px; color:#e6dfff; margin-top:6px;" id="dailyRewardText"></div>
+    <button class="modal-btn" onclick="claimDailyReward()" data-testid="claim-daily">🎁 Réclamer</button>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="if(event.target.id==='lightbox') closeLightbox()">
+  <button class="close-x" onclick="closeLightbox()" data-testid="lightbox-close">✕</button>
+  <img id="lightboxImg" src="" alt="">
+  <div class="lb-name" id="lightboxName"></div>
+  <div id="lightboxInfo"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* ===== Storage keys ===== */
+const STORAGE_KEY = "duelAlbum_collection_v2";
+const CACHE_KEY   = "duelAlbum_cardpool_fr_v4";
+const CACHE_TTL_MS = 24*60*60*1000;
+const PLAYER_KEY  = "duelAlbum_player_v2";
+
+/* ===== Player ===== */
+let player = JSON.parse(localStorage.getItem(PLAYER_KEY)) || {
+  level:1, xp:0, gems:2000
+};
+// Migration coins -> gems (once). Coins retired, only gems now.
+if(typeof player.coins === "number"){
+  player.gems = (player.gems || 0) + Math.floor(player.coins / 5); // 5 coins ≈ 1 gem
+  delete player.coins;
+  localStorage.setItem(PLAYER_KEY, JSON.stringify(player));
+}
+function savePlayer(){ localStorage.setItem(PLAYER_KEY, JSON.stringify(player)); refreshHud(); }
+function refreshHud(){
+  document.getElementById("hudLvl").textContent = player.level;
+  document.getElementById("hudXp").textContent = `${player.xp}/${player.level*100} xp`;
+  document.getElementById("hudGems").textContent = player.gems;
+}
+function addXP(a){ player.xp += a; while(player.xp >= player.level*100){ player.xp -= player.level*100; player.level++; toast("🎉 Niveau "+player.level+" !"); } savePlayer(); }
+function addGems(a){ player.gems += a; savePlayer(); }
+
+/* ===== State ===== */
+let allCards = [];
+let collection = loadCollection();
+let loaded = false;
+let currentPack = [];
+let currentIndex = 0;
+let tapLocked = false;   // anti double-appui (bug de blocage sur l'écran d'invocation)
+let lastTapAt = 0;
+let workingCollection = null;
+let currentRarityFilter = "all";
+let albumCharacterFilter = null; // null = tous, sinon character id
+let albumSort = "rarity-desc"; // rarity-desc | rarity-asc | recent | oldest | name
+let pickerMode = "pick";        // "pick" ou "album"
+let pendingPacks = 1; // pour ouverture ×10
+let sessionRewards = { xp:0, gems:0 };
+
+function loadCollection(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }catch(e){ return {}; } }
+function saveCollection(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(collection)); }
+
+function goTo(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+/* ===== Toast ===== */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove("show"), 1800);
+}
+
+/* ===== Load cards: API FR -> fallback local JSON ===== */
+async function loadCards(){
+  const cached = getCachedPool();
+  if(cached && cached.length){
+    allCards = cached;
+    loaded = true; onCardsReady(); return;
+  }
+  // 1) tentative API YGOPRODeck en français
+  try{
+    const res = await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr&num=300&offset=0&sort=name");
+    if(!res.ok) throw new Error("api");
+    const data = await res.json();
+    allCards = data.data.slice(0,300).map(c => ({
+      id: c.id,
+      name: c.name,
+      desc: c.desc || "",
+      type: c.type || "",
+      humanReadableCardType: c.humanReadableCardType || c.type || "",
+      race: c.race || "",
+      attribute: c.attribute || "",
+      level: c.level || "",
+      atk: (c.atk ?? ""),
+      def: (c.def ?? ""),
+      image: c.card_images[0].image_url
+    }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts:Date.now(), cards: allCards }));
+    loaded = true; onCardsReady(); return;
+  }catch(e){ /* fallback */ }
+  // 2) fallback local JSON (offline / API bloquée)
+  try{
+    const res2 = await fetch("cards_fr.json");
+    const local = await res2.json();
+    allCards = local;
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts:Date.now(), cards: allCards }));
+    loaded = true; onCardsReady();
+  }catch(err){
+    document.getElementById("loadingNote").textContent = "Impossible de charger les cartes. Vérifie ta connexion.";
+  }
+}
+function getCachedPool(){ try{ const raw = JSON.parse(localStorage.getItem(CACHE_KEY)); if(raw && Date.now()-raw.ts < CACHE_TTL_MS) return raw.cards; }catch(e){} return null; }
+function onCardsReady(){
+  document.getElementById("loadingNote").classList.add("hidden-el");
+  autoConvertLegacyDuplicates();
+  updateHomeProgress();
+  renderCharStrip();
+  updatePackForCharacter();
+  // Précharge le pool du personnage sélectionné si ce n'est pas "Tous"
+  if(selectedCharacter !== "all"){
+    loadCharacterPool(currentCharacter()).then(pool=>{
+      if(pool && pool.length){ characterPools[currentCharacter().id] = pool; renderCharStrip(); }
+    });
+  }
+}
+
+/* ===== Rarity ===== */
+// Cartes iconiques forcées en Secret Rare (Dieux Égyptiens & monstres légendaires)
+const ICONIC_SECRET_IDS = new Set([
+  10000000, // Slifer the Sky Dragon
+  10000010, // Obelisk the Tormentor
+  10000020, // The Winged Dragon of Ra
+  10000060, // Ra - Sphere Mode
+  89631139, // Blue-Eyes White Dragon
+  46986414, // Dark Magician
+  74677422, // Red-Eyes Black Dragon
+  79856792, // Rainbow Dragon
+  44508094, // Stardust Dragon
+  70902743, // Red Dragon Archfiend
+  73580471, // Black Rose Dragon
+  33396948, // Exodia the Forbidden One
+  70791313, // Left Arm of the Forbidden One
+  8124921,  // Right Arm of the Forbidden One
+  44519536, // Left Leg of the Forbidden One
+  7902349,  // Right Leg of the Forbidden One
+  89943723, // Elemental HERO Neos
+  87796900  // Cyber End Dragon
+]);
+function rarityForCard(card){
+  const id = Number(card.id);
+  if(ICONIC_SECRET_IDS.has(id)) return "Secret";
+  // Bêtes divines (Dieux Égyptiens etc.)
+  if(card.attribute === "DIVINE" || card.race === "Divine-Beast") return "Secret";
+  const lvl = Number(card.level) || 0;
+  const bucket = id % 1000;
+  // Cartes Magie / Piège (pas de niveau)
+  if(lvl <= 0){
+    if(bucket < 2)   return "Ultra";   // ~0,2%
+    if(bucket < 20)  return "Super";   // ~1,8%
+    if(bucket < 180) return "Rare";    // ~16%
+    return "Commune";                  // ~82%
+  }
+  // Niveau 9 et plus → Ultra ou Secret (rare!)
+  if(lvl >= 9){
+    if(bucket < 5) return "Secret";    // ~0,5% de la tranche
+    return "Ultra";
+  }
+  // Niveau 7-8 → Super Rare (avec petit bonus Ultra)
+  if(lvl >= 7){
+    if(bucket < 20)  return "Ultra";   // ~2% de la tranche
+    return "Super";
+  }
+  // Niveau 4-6 → Rare (avec bonus Super)
+  if(lvl >= 4){
+    if(bucket < 15)  return "Super";
+    return "Rare";
+  }
+  // Niveau 1-3 → Commune (avec petit bonus Rare)
+  if(bucket < 20)    return "Rare";
+  return "Commune";
+}
+// Rétro-compatibilité: quand on n'a que l'id (fallback)
+function rarityForId(id){
+  return rarityForCard({ id, level:0 });
+}
+const RARITY_LABEL = { Commune:"Commune", Rare:"Rare", Super:"Super Rare", Ultra:"Ultra Rare", Secret:"Secret Rare" };
+const RARITY_WEIGHT = { Commune:0, Rare:1, Super:2, Ultra:3, Secret:4 };
+// Taux moyens approximatifs sur l'ensemble du pool (dépend des cartes)
+const RARITY_ODDS  = { Commune:"~60 %", Rare:"~25 %", Super:"~10 %", Ultra:"~4 %", Secret:"~1 %" };
+
+/* Traduction des types/catégories YGOPRODeck (non traduits par l'API) */
+const TYPE_FR = {
+  "Normal Monster":"Monstre Normal","Effect Monster":"Monstre à Effet","Fusion Monster":"Monstre Fusion",
+  "Ritual Monster":"Monstre Rituel","Synchro Monster":"Monstre Synchro","XYZ Monster":"Monstre Xyz",
+  "Link Monster":"Monstre Lien","Pendulum Effect Monster":"Monstre Pendule à Effet",
+  "Pendulum Normal Monster":"Monstre Pendule Normal","Tuner Monster":"Monstre Syntoniseur",
+  "Spirit Monster":"Monstre Esprit","Toon Monster":"Monstre Toon","Union Effect Monster":"Monstre d'Union",
+  "Flip Effect Monster":"Monstre à Effet de Flip","Gemini Monster":"Monstre Gémeaux",
+  "Spell Card":"Carte Magie","Trap Card":"Carte Piège","Token":"Jeton",
+  "Normal Spell":"Magie Normale","Quick-Play Spell":"Magie Rapide","Continuous Spell":"Magie Continue",
+  "Ritual Spell":"Magie Rituelle","Field Spell":"Magie de Terrain","Equip Spell":"Magie Équipement",
+  "Normal Trap":"Piège Normal","Continuous Trap":"Piège Continu","Counter Trap":"Contre-Piège"
+};
+const RACE_FR = {
+  "Aqua":"Aqua","Beast":"Bête","Beast-Warrior":"Bête-Guerrier","Cyberse":"Cyberse","Dinosaur":"Dinosaure",
+  "Divine-Beast":"Bête Divine","Dragon":"Dragon","Fairy":"Fée","Fiend":"Démon","Fish":"Poisson",
+  "Insect":"Insecte","Machine":"Machine","Plant":"Plante","Psychic":"Psychique","Pyro":"Pyro",
+  "Reptile":"Reptile","Rock":"Rocher","Sea Serpent":"Serpent de Mer","Spellcaster":"Magicien",
+  "Thunder":"Tonnerre","Warrior":"Guerrier","Winged Beast":"Bête Ailée","Wyrm":"Wyrm","Zombie":"Zombie",
+  "Normal":"Normale","Continuous":"Continue","Counter":"Contre","Equip":"Équipement",
+  "Field":"Terrain","Quick-Play":"Rapide","Ritual":"Rituelle"
+};
+function trType(t){ return TYPE_FR[t] || t || "Inconnu"; }
+function trRace(r){ return RACE_FR[r] || r || ""; }
+
+/* Détermine la classe visuelle du cadre à partir du type de carte */
+function frameClassFor(card){
+  const t = String(card.type||"").toLowerCase();
+  const h = String(card.humanReadableCardType||"").toLowerCase();
+  if(t.includes("xyz") || h.includes("xyz")) return "f-xyz";
+  if(t.includes("link") || h.includes("link")) return "f-link";
+  if(t.includes("synchro") || h.includes("synchro")) return "f-synchro";
+  if(t.includes("fusion") || h.includes("fusion")) return "f-fusion";
+  if(t.includes("ritual") || h.includes("ritual") || t.includes("ritual monster")) return "f-ritual";
+  if(t.includes("spell")) return "f-spell";
+  if(t.includes("trap")) return "f-trap";
+  if(t.includes("normal monster") && !t.includes("effect")) return "f-normal";
+  if(t.includes("monster")) return "f-effect";
+  return "f-normal";
+}
+function croppedImageUrl(card){
+  const m = /\/(\d+)\.jpg/.exec(card.image||"");
+  const id = m ? m[1] : String(card.id||"");
+  return `https://images.ygoprodeck.com/images/cards_cropped/${id}.jpg`;
+}
+function attrShort(a){
+  const map = { "TÉNÈBRES":"TÉN","LUMIÈRE":"LUM","FEU":"FEU","EAU":"EAU","VENT":"VNT","TERRE":"TER","DIVIN":"DIV" };
+  return map[a] || (a ? a.substring(0,3).toUpperCase() : "");
+}
+function renderFrenchCard(card){
+  const frame = frameClassFor(card);
+  const isMonster = frame === "f-normal" || frame === "f-effect" || frame === "f-ritual" ||
+                    frame === "f-fusion" || frame === "f-synchro" || frame === "f-xyz" || frame === "f-link";
+  const attrHtml = card.attribute
+    ? `<div class="fr-attribute fr-attr-${card.attribute}">${attrShort(card.attribute)}</div>` : "";
+  const levelHtml = (isMonster && card.level && card.level !== "")
+    ? `<div class="fr-level">${"★".repeat(Math.min(card.level,12))}</div>`
+    : (frame === "f-spell" || frame === "f-trap")
+      ? `<div class="fr-level">[ ${trRace(card.race)} ]</div>`
+      : `<div class="fr-level"></div>`;
+  const typeLine = isMonster
+    ? `[${trRace(card.race)||"Monstre"} / ${frame==="f-normal"?"Normal":(frame==="f-effect"?"Effet":frame.replace("f-",""))}]`
+    : `[${trType(card.humanReadableCardType || card.type)}]`;
+  const statLine = (isMonster && card.atk !== "" && card.atk != null)
+    ? `<div class="fr-stats">ATK/${card.atk}  DEF/${card.def}</div>` : "";
+  const desc = String(card.desc||"").replace(/</g,"&lt;");
+  const safeName = String(card.name||"").replace(/</g,"&lt;");
+  const cropUrl = croppedImageUrl(card);
+  return `<div class="fr-card ${frame}">
+    <div class="fr-header"><div class="fr-name">${safeName}</div>${attrHtml}</div>
+    ${levelHtml}
+    <div class="fr-artbox"><img src="${cropUrl}" alt="${safeName}" onerror="this.src='${card.image}'"></div>
+    <div class="fr-typebar">${typeLine}</div>
+    <div class="fr-desc">${desc}</div>
+    ${statLine}
+  </div>`;
+}
+
+/* ===== CHARACTERS ===== */
+const CHARACTERS = [
+  { id:"all",     name:"Tous",     avatar:"🎴", color:"#b17bff", iconCardId:null, packSets:["LOB","MRD","EEN","TDGS"], archetypes:[], nameKeywords:[] },
+  /* --- Saison 1 (Yu-Gi-Oh! Duel Monsters) --- */
+  { id:"yugi",    name:"Yugi",     avatar:"🟣", color:"#8d47ff", iconCardId:46986414, packSets:["SDY","LOB","MRD","MRL"],
+    archetypes:["Dark Magician","Silent Magician","Silent Swordsman","Magnet Warrior","Kuriboh","Exodia","Buster Blader","Gaia The Fierce Knight","Egyptian God"],
+    nameKeywords:["Magicien Sombre","Magicienne Sombre","Kuriboh","Exodia","Guerrier Magnétique","Homme Magi","Serviteur","Buster Blader","Chevalier Féroce","Gaïa","Slifer","Osiris","Dragon Ailé","Bouclier","Dark Magician","Reine des Ténèbres","Démon Convoqué","Illusion Mystique"] },
+  { id:"kaiba",   name:"Kaiba",    avatar:"🐲", color:"#4fc3f7", iconCardId:89631139, packSets:["SDK","LOB","IOC","AST"],
+    archetypes:["Blue-Eyes"],
+    nameKeywords:["Yeux Bleus","Blue-Eyes","Dragon Blanc"] },
+  { id:"joey",    name:"Joey",     avatar:"🔥", color:"#ff7a3d", iconCardId:74677422, packSets:["SDJ","MRD","PSV","LOD"],
+    archetypes:["Red-Eyes"],
+    nameKeywords:["Yeux Rouges","Red-Eyes","Dragon Noir","Bébé Dragon","Épéiste Flamboyant"] },
+  { id:"mai",     name:"Mai",      avatar:"🕊️", color:"#ff5cae", iconCardId:76812113, packSets:["LOB","MRL","LON"],
+    archetypes:["Harpie"],
+    nameKeywords:["Harpie","Sœur Harpie","Faucon","Dame"] },
+  { id:"pegasus", name:"Pegasus",  avatar:"🎭", color:"#c9a2ff", iconCardId:64631466, packSets:["SDP","MRL","LON"],
+    archetypes:["Toon"],
+    nameKeywords:["Toon"] },
+  { id:"marik",   name:"Marik",    avatar:"🐍", color:"#c8a545", iconCardId:10000020, packSets:["PGD","LON","LOD"],
+    archetypes:["Sacred Beast","Winged Dragon of Ra","Gil","Newdoria"],
+    nameKeywords:["Dragon Ailé de Râ","Ra","Slifer","Obélisque"] },
+  { id:"bakura",  name:"Bakura",   avatar:"👁️", color:"#5f3fa8", iconCardId:31829185, packSets:["LOD","PGD","PSV"],
+    archetypes:["Dark Necrofear","Diabound"],
+    nameKeywords:["Nécrofrayeur","Poupée de Sacrifice","Faucheur","Occulte"] },
+  /* --- Yu-Gi-Oh! GX --- */
+  { id:"jaden",   name:"Jaden",    avatar:"⭐", color:"#f0c14b", iconCardId:89943723, packSets:["EEN","POTD","CRV","CDIP"],
+    archetypes:["Elemental HERO","Neos"],
+    nameKeywords:["HÉROS Élémentaire","Neos","Winged Kuriboh","Kuriboh Ailé"] },
+  { id:"zane",    name:"Zane",     avatar:"🤖", color:"#8ea0b8", iconCardId:70095154, packSets:["CRV","CDIP","POTD"],
+    archetypes:["Cyber Dragon","Cyberdark"],
+    nameKeywords:["Cyber Dragon","Cyber Fin","Cyber Ténèbres"] },
+  { id:"chazz",   name:"Chazz",    avatar:"🗡️", color:"#3a3a3a", iconCardId:73879377, packSets:["EEN","SOI","POTD"],
+    archetypes:["Armed Dragon","Ojama","VWXYZ"],
+    nameKeywords:["Dragon Armé","Ojama","VW","XY","XYZ-"] },
+  { id:"aster",   name:"Aster",    avatar:"🌟", color:"#e5e5f5", iconCardId:88643173, packSets:["POTD","CDIP","SOI"],
+    archetypes:["Destiny HERO"],
+    nameKeywords:["HÉROS du Destin","Destiny HERO"] },
+  { id:"alexis",  name:"Alexis",   avatar:"❄️", color:"#a8d8ff", iconCardId:61407805, packSets:["SOI","EEN","POTD"],
+    archetypes:["Cyber Angel","Cyber Girl"],
+    nameKeywords:["Cyber Ange","Cyber Fille"] },
+  { id:"jesse",   name:"Jesse",    avatar:"🌈", color:"#7dd8ff", iconCardId:79856792, packSets:["FOTB","TAEV","GLAS","PTDN"],
+    archetypes:["Crystal Beast"],
+    nameKeywords:["Bête Cristal","Bête de Cristal","Cristalline","Arc-en-ciel","Rainbow Dragon"] },
+  /* --- Yu-Gi-Oh! 5D's --- */
+  { id:"yusei",   name:"Yusei",    avatar:"⚡", color:"#5cd0ff", iconCardId:44508094, packSets:["TDGS","CSOC","CRMS","RGBT"],
+    archetypes:["Stardust","Synchron","Junk"],
+    nameKeywords:["Poussière d'Étoile","Synchronique","Rebut","Warrior d'Assaut"] },
+  { id:"jack",    name:"Jack",     avatar:"👹", color:"#e5344a", iconCardId:70902743, packSets:["CSOC","CRMS","ANPR"],
+    archetypes:["Red Dragon Archfiend","Resonator"],
+    nameKeywords:["Dragon Rouge Archdémon","Résonateur","Archdémon Rouge"] },
+  { id:"aki",     name:"Aki",      avatar:"🌹", color:"#c0264d", iconCardId:73580471, packSets:["CRMS","RGBT","ANPR"],
+    archetypes:["Black Rose","Rose Dragon"],
+    nameKeywords:["Rose Noire","Dragon Rose","Rosier"] },
+  { id:"crow",    name:"Crow",     avatar:"🪶", color:"#3d3d5c", iconCardId:47656365, packSets:["RGBT","ANPR","CRMS"],
+    archetypes:["Blackwing","Black-Winged"],
+    nameKeywords:["Aile Noire","Ailé Noir","Corbeau"] }
+];
+const CHAR_KEY = "duelAlbum_char_v1";
+let selectedCharacter = localStorage.getItem(CHAR_KEY) || "all";
+const characterPools = { all: null }; // cache pool par personnage
+function ownedCountFor(chId, pool){
+  if(chId === "all") return Object.keys(collection).length;
+  if(!pool) return 0;
+  return pool.filter(c=>collection[c.id]).length;
+}
+
+function currentCharacter(){ return CHARACTERS.find(c=>c.id===selectedCharacter) || CHARACTERS[0]; }
+
+function mapApiCard(c){
+  return {
+    id:c.id, name:c.name, desc:c.desc||"", type:c.type||"",
+    humanReadableCardType:c.humanReadableCardType||c.type||"",
+    race:c.race||"", attribute:c.attribute||"",
+    level:c.level||"", atk:(c.atk??""), def:(c.def??""),
+    image:c.card_images[0].image_url
+  };
+}
+
+async function fetchArchetype(a){
+  try{
+    const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?language=fr&archetype=${encodeURIComponent(a)}`);
+    if(!res.ok) return [];
+    const j = await res.json();
+    return (j.data||[]).map(mapApiCard);
+  }catch(e){ return []; }
+}
+
+async function loadCharacterPool(char){
+  if(char.id === "all") return allCards;
+  const cacheKey = "duelAlbum_charpool_" + char.id + "_v2";
+  const cached = localStorage.getItem(cacheKey);
+  if(cached){
+    try{ return JSON.parse(cached); }catch(e){}
+  }
+  // Fetch all archetypes en parallèle
+  const arrs = await Promise.all(char.archetypes.map(fetchArchetype));
+  let pool = arrs.flat();
+  // Complète avec les cartes du pool général qui matchent les keywords FR
+  const kwLower = char.nameKeywords.map(k=>k.toLowerCase());
+  const bonus = allCards.filter(c=>{
+    const n = c.name.toLowerCase();
+    return kwLower.some(k=>n.includes(k.toLowerCase()));
+  });
+  pool = pool.concat(bonus);
+  // Dédoublonne
+  const map = new Map();
+  pool.forEach(c=> map.set(c.id, c));
+  pool = Array.from(map.values());
+  if(pool.length === 0) return null; // aucun résultat
+  localStorage.setItem(cacheKey, JSON.stringify(pool));
+  return pool;
+}
+
+async function selectCharacter(id){
+  selectedCharacter = id;
+  localStorage.setItem(CHAR_KEY, id);
+  renderCharStrip();
+  updatePackForCharacter();
+  const ch = currentCharacter();
+  if(ch.id !== "all" && !characterPools[ch.id]){
+    toast("Chargement du deck de " + ch.name + "…");
+    const pool = await loadCharacterPool(ch);
+    if(pool && pool.length){
+      characterPools[ch.id] = pool;
+      toast(ch.name + " • " + pool.length + " cartes disponibles");
+      renderCharStrip(); // met à jour le count
+    } else {
+      toast("Impossible de charger le deck de " + ch.name);
+      selectedCharacter = "all";
+      localStorage.setItem(CHAR_KEY, "all");
+      renderCharStrip();
+    }
+  }
+}
+
+function renderCharStrip(){ /* remplacé par openDeckPicker */ }
+
+function updatePackForCharacter(){
+  const ch = currentCharacter();
+  const pack = document.getElementById("packEl");
+  if(!pack) return;
+  pack.style.setProperty("--charColor", ch.color);
+  pack.style.borderColor = ch.color;
+  pack.style.boxShadow =
+    `0 0 0 1px rgba(255,255,255,0.03) inset, 0 18px 40px -12px rgba(0,0,0,0.7), 0 0 34px -4px ${ch.color}`;
+  // Show character's iconic card artwork as pack background (high-res, sharp)
+  if(ch.iconCardId){
+    pack.style.backgroundImage = `url('https://images.ygoprodeck.com/images/cards/${ch.iconCardId}.jpg')`;
+    pack.classList.add("has-set-img");
+    pack.dataset.setCode = "";
+  } else {
+    pack.style.backgroundImage = "";
+    pack.classList.remove("has-set-img");
+  }
+  // Caption du haut
+  let cap = pack.querySelector(".pack-caption-char");
+  if(!cap){
+    cap = document.createElement("div");
+    cap.className = "pack-caption-char";
+    pack.appendChild(cap);
+  }
+  cap.textContent = ch.id === "all" ? "Booster général" : "Deck de " + ch.name;
+  cap.style.color = ch.color;
+  // Avatar hero + nom
+  let hero = pack.querySelector(".pack-hero-avatar");
+  let heroName = pack.querySelector(".pack-hero-name");
+  const emblem = pack.querySelector(".pack-emblem");
+  if(ch.id === "all"){
+    if(hero) hero.remove();
+    if(heroName) heroName.remove();
+    if(emblem) emblem.style.display = "";
+  } else {
+    if(emblem) emblem.style.display = "none";
+    if(!hero){
+      hero = document.createElement("div"); hero.className = "pack-hero-avatar";
+      pack.appendChild(hero);
+    }
+    hero.innerHTML = ch.iconCardId
+      ? `<div class="ph-img" style="background-image:url('https://images.ygoprodeck.com/images/cards_cropped/${ch.iconCardId}.jpg');"></div><span class="ph-emoji">${ch.avatar}</span>`
+      : `<span class="ph-emoji">${ch.avatar}</span>`;
+    hero.style.setProperty("--charColor", ch.color);
+    if(!heroName){
+      heroName = document.createElement("div"); heroName.className = "pack-hero-name";
+      pack.appendChild(heroName);
+    }
+    heroName.textContent = ch.name.toUpperCase();
+  }
+  // Bas de caption
+  const bottomCap = pack.querySelector(".pack-caption");
+  if(bottomCap){
+    bottomCap.textContent = ch.id === "all" ? "Toucher pour choisir un deck" : "Toucher pour changer";
+  }
+}
+
+/* ===== DECK PICKER ===== */
+const SERIES_LABEL = { "dm":"Duel Monsters", "gx":"GX", "5ds":"5D's", "misc":"" };
+const CHAR_SERIES = {
+  yugi:"dm", kaiba:"dm", joey:"dm", mai:"dm", pegasus:"dm", marik:"dm", bakura:"dm",
+  jaden:"gx", zane:"gx", chazz:"gx", aster:"gx", alexis:"gx", jesse:"gx",
+  yusei:"5ds", jack:"5ds", aki:"5ds", crow:"5ds",
+  all:"misc"
+};
+function openDeckPicker(mode){
+  pickerMode = (mode === "album") ? "album" : "pick";
+  renderDeckPicker();
+  goTo("deckPicker");
+}
+function renderDeckPicker(){
+  const grid = document.getElementById("dpGrid");
+  grid.innerHTML = "";
+  // Titre dynamique selon le mode
+  const headerTitle = document.querySelector("#deckPicker .album-title");
+  const headerSub   = document.querySelector("#deckPicker .album-header .col > div:nth-child(2)");
+  if(headerTitle){
+    headerTitle.textContent = pickerMode === "album" ? "Choisis un album" : "Choisis un deck";
+  }
+  if(headerSub){
+    headerSub.textContent = pickerMode === "album"
+      ? "Consulte les cartes de ce deck spécifique"
+      : "Le booster ne contiendra que des cartes de ce personnage";
+  }
+  const groups = [
+    { label:"Duel Monsters", chars:CHARACTERS.filter(c=>CHAR_SERIES[c.id]==="dm") },
+    { label:"Yu-Gi-Oh! GX", chars:CHARACTERS.filter(c=>CHAR_SERIES[c.id]==="gx") },
+    { label:"Yu-Gi-Oh! 5D's", chars:CHARACTERS.filter(c=>CHAR_SERIES[c.id]==="5ds") }
+  ];
+  groups.forEach(g=>{
+    if(g.label){
+      const h = document.createElement("div");
+      h.className = "dp-section-title"; h.textContent = g.label;
+      grid.appendChild(h);
+    }
+    g.chars.forEach(ch=>{
+      const pool = ch.id === "all" ? allCards : characterPools[ch.id];
+      const count = pool ? pool.length : (ch.id === "all" ? allCards.length : "…");
+      const isActive = ch.id === selectedCharacter;
+      // Deck complet ?
+      const isComplete = pool && pool.length > 0 && ownedCountFor(ch.id, pool) >= pool.length;
+      const el = document.createElement("div");
+      el.className = "dp-item"
+        + (isActive && pickerMode==="pick" ? " active" : "")
+        + (isComplete ? " complete" : "");
+      el.style.setProperty("--charColor", ch.color);
+      el.setAttribute("data-testid", "dp-"+ch.id);
+      // Nombre de cartes possédées si mode album
+      const ownedCount = ch.id === "all"
+        ? Object.keys(collection).length
+        : (pool ? pool.filter(c=>collection[c.id]).length : 0);
+      const totalCount = ch.id === "all" ? allCards.length : (pool ? pool.length : "…");
+      const bottomLabel = pickerMode === "album"
+        ? `${ownedCount}/${totalCount} possédées`
+        : `${count} cartes`;
+      const actionBtn = pickerMode === "album" ? "" :
+        `<button class="dp-mini-album" data-testid="dp-album-${ch.id}">📖 Album</button>`;
+      el.innerHTML = `
+        ${isActive && pickerMode==="pick" ? `<div class="dp-check">✓</div>` : ``}
+        ${isComplete ? `<div class="dp-complete-badge" data-testid="dp-complete-${ch.id}">✨ COMPLET</div>` : ``}
+        <div class="dp-avatar">
+          ${ch.iconCardId
+            ? `<div class="dp-avatar-img" style="background-image:url('https://images.ygoprodeck.com/images/cards/${ch.iconCardId}.jpg');"></div>`
+            : `<span class="dp-avatar-emoji">${ch.avatar}</span>`}
+        </div>
+        <div class="dp-name">${ch.name}</div>
+        <div class="dp-count">${bottomLabel}</div>
+        ${actionBtn}`;
+      el.onclick = async (e)=>{
+        if(pickerMode === "album"){
+          await openCharacterAlbum(ch.id);
+          return;
+        }
+        if(e.target.classList.contains("dp-mini-album")){
+          e.stopPropagation();
+          await openCharacterAlbum(ch.id);
+          return;
+        }
+        await pickDeckAndReturn(ch.id);
+      };
+      grid.appendChild(el);
+    });
+  });
+}
+async function openCharacterAlbum(charId){
+  const ch = CHARACTERS.find(c=>c.id===charId);
+  if(!ch) return;
+  if(ch.id !== "all" && !characterPools[ch.id]){
+    toast("Chargement du deck de " + ch.name + "…");
+    const pool = await loadCharacterPool(ch);
+    if(!pool || !pool.length){ toast("Deck indisponible"); return; }
+    characterPools[ch.id] = pool;
+  }
+  albumCharacterFilter = ch.id === "all" ? null : ch.id;
+  currentRarityFilter = "all";
+  document.getElementById("searchInput").value = "";
+  document.querySelectorAll(".filter-chip").forEach(c=>c.classList.remove("active"));
+  const allChip = document.querySelector('[data-testid="filter-all"]');
+  if(allChip) allChip.classList.add("active");
+  syncAlbumSortUI();
+  renderAlbum();
+  goTo("albumScreen");
+  refreshHud();
+}
+
+async function pickDeckAndReturn(id){
+  const ch = CHARACTERS.find(c=>c.id===id);
+  if(!ch) return;
+  if(ch.id !== "all" && !characterPools[ch.id]){
+    toast("Chargement du deck de " + ch.name + "…");
+    const pool = await loadCharacterPool(ch);
+    if(!pool || !pool.length){
+      toast("Deck de " + ch.name + " indisponible");
+      return;
+    }
+    characterPools[ch.id] = pool;
+  }
+  selectedCharacter = id;
+  localStorage.setItem(CHAR_KEY, id);
+  trackQuestEvent("switch", 1);
+  updatePackForCharacter();
+  goTo("home");
+  toast(ch.id === "all" ? "Deck : Tous" : "Deck de " + ch.name + " sélectionné");
+}
+
+
+/* ===== Pack ===== */
+function pickRandom(pool){ return pool[Math.floor(Math.random()*pool.length)]; }
+function buildPack(){
+  const ch = currentCharacter();
+  const pool = (ch.id === "all") ? allCards : (characterPools[ch.id] || allCards);
+  const nonCommon = pool.filter(c => rarityForCard(c) !== "Commune");
+  const cards = [];
+  for(let i=0;i<4;i++) cards.push(pickRandom(pool));
+  cards.push(nonCommon.length ? pickRandom(nonCommon) : pickRandom(pool));
+
+  workingCollection = JSON.parse(JSON.stringify(collection));
+  let duplicateGems = 0;
+  const results = cards.map(c=>{
+    const rarity = rarityForCard(c);
+    const existing = workingCollection[c.id];
+    const isNew = !existing;
+    if(existing){
+      // Doublon → converti automatiquement en gemmes selon la rareté
+      duplicateGems += (DUPE_VALUE[rarity] || 10);
+    } else {
+      workingCollection[c.id] = {
+        count:1, rarity,
+        name:c.name, desc:c.desc, image:c.image,
+        type:c.type, humanReadableCardType:c.humanReadableCardType,
+        race:c.race, attribute:c.attribute,
+        level:c.level, atk:c.atk, def:c.def,
+        obtainedAt: Date.now()
+      };
+    }
+    return { ...c, rarity, isNew, dupGems: existing ? (DUPE_VALUE[rarity] || 10) : 0 };
+  });
+  // Applique le gain de gemmes de doublons pour le pack
+  if(duplicateGems > 0){
+    pendingDuplicateGems = (pendingDuplicateGems||0) + duplicateGems;
+  }
+  return results;
+}
+
+/* ===== Open ===== */
+function startOpening(count){
+  if(!loaded){ toast("Chargement en cours…"); return; }
+  count = count || 1;
+  // Utilise d'abord les boosters gratuits (pas)
+  let freeUsed = 0;
+  if(stepState.freePacks && stepState.freePacks > 0){
+    freeUsed = Math.min(stepState.freePacks, count);
+  }
+  const paidCount = count - freeUsed;
+  const cost = count === 10 ? { gems:400 } : { gems: 50 * paidCount };
+  if(count === 10 && freeUsed > 0){
+    // Réduction proportionnelle du coût ×10
+    cost.gems = Math.max(0, Math.round(400 * (paidCount/10)));
+  }
+  if(cost.gems && player.gems < cost.gems){ toast("Pas assez de 💎 gemmes"); return; }
+  if(freeUsed > 0){
+    stepState.freePacks -= freeUsed;
+    saveSteps(); renderSteps();
+    if(freeUsed === count) toast("Booster gratuit utilisé 🎁");
+  }
+  if(cost.gems) addGems(-cost.gems);
+
+  pendingPacks = count;
+  sessionRewards = { xp:0, gems:0 };
+  const packEl = document.getElementById("packEl");
+  const flash = document.getElementById("packFlash");
+  // Random opening animation
+  const anims = ["opening-rip", "opening-slide", "opening-burst"];
+  const anim = anims[Math.floor(Math.random() * anims.length)];
+  packEl.classList.remove("shaking", "opening-rip", "opening-slide", "opening-burst");
+  // Force reflow so animation restarts
+  void packEl.offsetWidth;
+  packEl.classList.add("shaking");
+  setTimeout(()=>{
+    packEl.classList.remove("shaking");
+    packEl.classList.add(anim);
+    if(flash) { flash.classList.remove("show"); void flash.offsetWidth; flash.classList.add("show"); }
+    setTimeout(()=>{
+      // Reset pack for after we return
+      packEl.classList.remove(anim);
+      packEl.style.opacity = "";
+      packEl.style.transform = "";
+      if(flash) flash.classList.remove("show");
+      if(count >= 10) trackQuestEvent("open10", 1);
+      openNextPack();
+    }, 1000);
+  }, 380);
+}
+function openNextPack(){
+  currentPack = buildPack();
+  currentIndex = 0;
+  goTo("opening");
+  renderCurrentCard(true);
+}
+
+/* ===== Reveal ===== */
+function renderCurrentCard(resetFlip){
+  // Garde-fou : si l'index est invalide (carte manquante), on ne plante pas
+  // et on referme proprement l'écran d'invocation au lieu de rester bloqué.
+  if(!currentPack || currentIndex < 0 || currentIndex >= currentPack.length || !currentPack[currentIndex]){
+    if(currentPack && currentPack.length) showSummary();
+    return;
+  }
+  const card = currentPack[currentIndex];
+  const card3d = document.getElementById("card3d");
+  const faceFront = document.getElementById("faceFront");
+  const ribbon = document.getElementById("ribbon");
+  const dupeBadge = document.getElementById("dupeBadge");
+  const rarityTag = document.getElementById("rarityTag");
+  const hint = document.getElementById("openingHint");
+  const halo = document.getElementById("cardHalo");
+  const revealFlash = document.getElementById("revealFlash");
+
+  card3d.className = "card3d rar-" + card.rarity;
+  ribbon.classList.remove("show");
+  dupeBadge.classList.add("hidden-el");
+  if(halo){ halo.className = "card-halo rar-" + card.rarity; }
+  if(revealFlash){ revealFlash.className = "reveal-flash rar-" + card.rarity; }
+  faceFront.innerHTML = `<div class="holo"></div>${renderFrenchCard(card)}`;
+  rarityTag.className = "rarity-tag " + card.rarity;
+  rarityTag.textContent = RARITY_LABEL[card.rarity];
+  document.getElementById("cardCount").textContent = `Carte ${currentIndex+1} / ${currentPack.length}`;
+  hint.textContent = "Touche la carte pour la révéler";
+  if(resetFlip !== false) card3d.classList.remove("flipped");
+  tapLocked = false; // nouvelle carte affichée : on ré-autorise le tap
+}
+
+function handleCardTap(){
+  // Anti double-appui : sur mobile, un même appui peut déclencher l'évènement
+  // "click" deux fois de suite (ghost click / rebond tactile). Sans ce verrou,
+  // le 2e déclenchement passait directement à la carte suivante en sautant
+  // l'affichage, ce qui finissait par désynchroniser l'index et bloquer l'écran.
+  const now = Date.now();
+  if(tapLocked || now - lastTapAt < 220) return;
+  lastTapAt = now;
+
+  // Garde-fou : évite un plantage silencieux (et donc un blocage permanent)
+  // si l'index de carte est hors limites pour une raison quelconque.
+  if(!currentPack || !currentPack.length || currentIndex >= currentPack.length){
+    showSummary();
+    return;
+  }
+
+  const card3d = document.getElementById("card3d");
+  const hint = document.getElementById("openingHint");
+  const card = currentPack[currentIndex];
+  if(!card3d.classList.contains("flipped")){
+    card3d.classList.add("flipped");
+    hint.textContent = "Touche pour continuer";
+    const isRare = (card.rarity === "Super" || card.rarity === "Ultra" || card.rarity === "Secret");
+    if(isRare){
+      // Mega reveal: shake + halo + flash
+      card3d.classList.add("mega-reveal");
+      const halo = document.getElementById("cardHalo");
+      const flash = document.getElementById("revealFlash");
+      if(halo){ halo.classList.remove("show"); void halo.offsetWidth; halo.classList.add("show"); }
+      if(flash && (card.rarity === "Ultra" || card.rarity === "Secret")){
+        flash.classList.remove("show"); void flash.offsetWidth; flash.classList.add("show");
+      }
+      setTimeout(()=>{ card3d.classList.remove("mega-reveal"); }, 1350);
+    }
+    setTimeout(()=>{
+      const ribbon = document.getElementById("ribbon");
+      const dupe = document.getElementById("dupeBadge");
+      if(card.isNew) ribbon.classList.add("show");
+      else if(card.dupGems > 0){ dupe.classList.remove("hidden-el"); dupe.textContent = "+" + card.dupGems + "💎 doublon"; }
+      if(isRare) burstParticles();
+    }, 380);
+    return;
+  }
+  currentIndex++;
+  if(currentIndex >= currentPack.length) showSummary();
+  else renderCurrentCard(true);
+}
+
+function skipReveals(){
+  // Révèle toutes les cartes restantes instantanément
+  for(let i=currentIndex; i<currentPack.length; i++){ /* déjà appliqué dans workingCollection */ }
+  showSummary();
+}
+
+function burstParticles(){
+  const wrap = document.getElementById("particles");
+  wrap.innerHTML = "";
+  const n = 14;
+  for(let i=0;i<n;i++){
+    const s = document.createElement("div");
+    s.className = "spark";
+    const angle = (Math.PI*2*i)/n;
+    const dist = 90 + Math.random()*40;
+    s.style.setProperty("--dx", Math.cos(angle)*dist + "px");
+    s.style.setProperty("--dy", Math.sin(angle)*dist + "px");
+    wrap.appendChild(s);
+    requestAnimationFrame(()=> s.classList.add("go"));
+  }
+  setTimeout(()=>{ wrap.innerHTML = ""; }, 950);
+}
+
+/* ===== Summary ===== */
+function showSummary(){
+  collection = workingCollection;
+  saveCollection();
+
+  const grid = document.getElementById("summaryGrid");
+  grid.innerHTML = "";
+  currentPack.forEach(c=>{
+    const div = document.createElement("div");
+    div.className = "summary-card" + (c.isNew ? " new" : "");
+    div.style.backgroundImage = `url(${c.image})`;
+    div.title = c.name;
+    grid.appendChild(div);
+  });
+
+  // Rewards du booster courant
+  const xpGain = 40;
+  let gemGain = 12;
+  if(currentPack.some(c=>c.rarity==="Secret")) gemGain = 60;
+  else if(currentPack.some(c=>c.rarity==="Ultra")) gemGain = 35;
+  else if(currentPack.some(c=>c.rarity==="Super")) gemGain = 20;
+  addXP(xpGain); addGems(gemGain);
+  sessionRewards.xp += xpGain; sessionRewards.gems += gemGain;
+
+  // Suivi des quêtes
+  trackQuestEvent("open", 1);
+  trackQuestEvent("openPack", 1);
+  const chId = currentCharacter().id;
+  if(chId !== "all"){
+    trackQuestEvent("char:"+chId, 1);
+    const s = CHAR_SERIES[chId];
+    if(s && s !== "misc") trackQuestEvent("series:"+s, 1);
+  }
+  const newCount = currentPack.filter(c=>c.isNew).length;
+  if(newCount > 0) trackQuestEvent("new", newCount);
+  if(currentPack.some(c=>c.rarity==="Super" || c.rarity==="Ultra" || c.rarity==="Secret")) trackQuestEvent("super", 1);
+  if(currentPack.some(c=>c.rarity==="Ultra" || c.rarity==="Secret")) trackQuestEvent("ultra", 1);
+  if(currentPack.some(c=>c.rarity==="Secret")) trackQuestEvent("secret", 1);
+  // Collection cumulée
+  trackQuestEvent("collection", Object.keys(collection).length - (quests.items.find(i=>questDef(i.id)?.evt==="collection")?.progress || 0));
+  // Niveau
+  trackQuestEvent("level", player.level);
+
+  // Doublons de ce booster convertis en gemmes
+  const dupBonus = pendingDuplicateGems || 0;
+  if(dupBonus > 0){ addGems(dupBonus); sessionRewards.gems += dupBonus; }
+  pendingDuplicateGems = 0;
+
+  document.getElementById("summarySub").textContent =
+    (pendingPacks > 1) ? `Booster ${11-pendingPacks} / 10` : "";
+  document.getElementById("rewardsLine").innerHTML =
+    `<span>+<b>${xpGain}</b> XP</span> <span>+<b>${gemGain}</b> 💎</span>`
+    + (dupBonus > 0 ? ` <span>+<b>${dupBonus}</b> 💎 doublons</span>` : "");
+
+  goTo("summaryScreen");
+}
+
+function finishPack(){
+  pendingPacks--;
+  if(pendingPacks > 0){
+    openNextPack();
+    return;
+  }
+  updateHomeProgress();
+  goTo("home");
+}
+
+/* ===== Progress ===== */
+function backFromAlbum(){
+  // Si un perso est sélectionné dans l'album => retour au picker album
+  // Sinon on rentre sur home.
+  if(albumCharacterFilter){
+    openDeckPicker("album");
+  } else {
+    goTo("home");
+  }
+}
+function updateHomeProgress(){
+  const total = allCards.length;
+  const owned = Object.keys(collection).length;
+  const pct = total ? Math.round((owned/total)*100) : 0;
+  document.getElementById("progressCount").textContent = `${owned} / ${total} cartes`;
+  document.getElementById("progressPercent").textContent = pct + "%";
+  document.getElementById("progressFill").style.width = pct + "%";
+  refreshHud();
+}
+
+/* ===== Album ===== */
+function openAlbum(){ albumCharacterFilter = null; renderAlbum(); syncAlbumSortUI(); goTo("albumScreen"); refreshHud(); trackQuestEvent("album", 1); trackQuestEvent("collection", Object.keys(collection).length); trackQuestEvent("level", player.level); }
+function setRarityFilter(r, el){
+  currentRarityFilter = r;
+  document.querySelectorAll(".filter-chip").forEach(c=>c.classList.remove("active"));
+  el.classList.add("active");
+  renderAlbum();
+}
+function setAlbumSort(v){ albumSort = v; renderAlbum(); }
+function albumSortComparator(a, b){
+  switch(albumSort){
+    case "rarity-asc":  return (RARITY_WEIGHT[a.rarity]-RARITY_WEIGHT[b.rarity]) || a.name.localeCompare(b.name);
+    case "recent":      return ((collection[b.id]?.obtainedAt||0) - (collection[a.id]?.obtainedAt||0)) || (RARITY_WEIGHT[b.rarity]-RARITY_WEIGHT[a.rarity]);
+    case "oldest":      return ((collection[a.id]?.obtainedAt||Number.MAX_SAFE_INTEGER) - (collection[b.id]?.obtainedAt||Number.MAX_SAFE_INTEGER)) || (RARITY_WEIGHT[b.rarity]-RARITY_WEIGHT[a.rarity]);
+    case "name":        return a.name.localeCompare(b.name);
+    case "rarity-desc":
+    default:            return (RARITY_WEIGHT[b.rarity]-RARITY_WEIGHT[a.rarity]) || a.name.localeCompare(b.name);
+  }
+}
+function renderAlbum(){
+  const grid = document.getElementById("albumGrid");
+  grid.innerHTML = "";
+
+  // Détermine le pool actif : deck spécifique ou pool global
+  const activePool = albumCharacterFilter && characterPools[albumCharacterFilter]
+    ? characterPools[albumCharacterFilter]
+    : allCards;
+
+  const total = activePool.length;
+  const owned = activePool.filter(c => collection[c.id]).length;
+  const pct = total ? Math.round((owned/total)*100) : 0;
+  document.getElementById("albumProgressFill").style.width = pct + "%";
+  document.getElementById("albumProgressText").textContent = `${owned}/${total}`;
+
+  // En-tête du deck si filtré
+  const albumTitle = document.querySelector(".album-title");
+  if(albumCharacterFilter){
+    const ch = CHARACTERS.find(c=>c.id===albumCharacterFilter);
+    if(albumTitle) albumTitle.textContent = `Album de ${ch.name}`;
+  } else {
+    if(albumTitle) albumTitle.textContent = "Album";
+  }
+
+  const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
+
+  const list = activePool
+    .map(c => ({ ...c, rarity: rarityForCard(c) }))
+    .filter(c => {
+      if(q && !c.name.toLowerCase().includes(q)) return false;
+      if(currentRarityFilter === "all") return true;
+      if(currentRarityFilter === "owned") return !!collection[c.id];
+      return c.rarity === currentRarityFilter;
+    })
+    .sort(albumSortComparator);
+
+  if(list.length === 0){
+    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:#8d87b8; padding:30px 0; font-size:13px;">Aucune carte trouvée</div>`;
+    return;
+  }
+
+  list.forEach((card,i)=>{
+    const entry = collection[card.id];
+    const div = document.createElement("div");
+    if(entry){
+      div.className = "cardMini";
+      div.setAttribute("data-testid", "card-mini-"+card.id);
+      div.innerHTML = `<span class="rar-dot ${card.rarity}"></span><img src="${card.image}" alt="${card.name}">`;
+      div.onclick = ()=> openLightbox(card);
+    }else{
+      div.className = "lock";
+    }
+    grid.appendChild(div);
+  });
+}
+function clearCharAlbum(){
+  albumCharacterFilter = null;
+  renderAlbum();
+}
+function syncAlbumSortUI(){
+  const sel = document.getElementById("albumSortSelect");
+  if(sel) sel.value = albumSort;
+}
+
+function openLightbox(card){
+  const entry = collection[card.id];
+  const rarity = entry?.rarity || rarityForId(card.id);
+  const cardData = { ...card, ...(entry || {}) };
+  document.getElementById("lightboxImg").style.display = "none";
+  document.getElementById("lightboxName").textContent = card.name;
+  const statLine = (card.atk !== "" && card.atk !== null && card.atk !== undefined)
+    ? `<div class="stat-row"><span class="stat-badge">⚔️ ATK ${card.atk}</span><span class="stat-badge">🛡️ DEF ${card.def}</span></div>` : "";
+  document.getElementById("lightboxInfo").innerHTML = `
+    <div style="width:min(66vw,260px); aspect-ratio:59/86; border-radius:14px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.6); margin:0 auto;">
+      ${renderFrenchCard(cardData)}
+    </div>
+    <div class="card-info" style="margin-top:12px;">
+      <p><b>Rareté :</b> ${RARITY_LABEL[rarity]}</p>
+      <p><b>Type :</b> ${trType(card.humanReadableCardType || card.type)}</p>
+      ${card.race ? `<p><b>Catégorie :</b> ${trRace(card.race)}</p>` : ""}
+      ${card.attribute ? `<p><b>Attribut :</b> ${card.attribute}</p>` : ""}
+      ${card.level !== "" && card.level != null ? `<p><b>Niveau :</b> ⭐ ${card.level}</p>` : ""}
+      ${statLine}
+      <hr>
+      <p class="desc">${card.desc || ""}</p>
+      <p><b>Valeur si doublon :</b> +${DUPE_VALUE[rarity] || 10} 💎</p>
+    </div>`;
+  document.getElementById("lightbox").classList.add("show");
+  trackQuestEvent("detail", 1);
+}
+function closeLightbox(){ document.getElementById("lightbox").classList.remove("show"); }
+
+/* ===== DAILY QUESTS ===== */
+const QUEST_DEFS = [
+  /* Génériques : ouvertures */
+  { id:"open3",    title:"Ouvre 3 boosters",              target:3,  reward:{gems:20},   evt:"open" },
+  { id:"open5",    title:"Ouvre 5 boosters",              target:5,  reward:{gems:50},   evt:"open" },
+  { id:"open10",   title:"Ouvre 10 boosters",             target:10, reward:{gems:100},  evt:"open" },
+  { id:"openx10",  title:"Ouvre un booster ×10",          target:1,  reward:{gems:25},   evt:"open10" },
+  /* Nouvelles cartes */
+  { id:"new3",     title:"Trouve 3 nouvelles cartes",     target:3,  reward:{gems:25},   evt:"new" },
+  { id:"new5",     title:"Trouve 5 nouvelles cartes",     target:5,  reward:{gems:60},   evt:"new" },
+  { id:"new10",    title:"Trouve 10 nouvelles cartes",    target:10, reward:{gems:120},  evt:"new" },
+  /* Raretés */
+  { id:"super1",   title:"Obtiens 1 carte Super Rare",    target:1,  reward:{gems:30},   evt:"super" },
+  { id:"super3",   title:"Obtiens 3 cartes Super Rare",   target:3,  reward:{gems:90},   evt:"super" },
+  { id:"ultra1",   title:"Obtiens 1 carte Ultra Rare",    target:1,  reward:{gems:120},  evt:"ultra" },
+  { id:"ultra2",   title:"Obtiens 2 cartes Ultra Rare",   target:2,  reward:{gems:250},  evt:"ultra" },
+  { id:"secret1",  title:"Obtiens 1 carte Secret Rare",   target:1,  reward:{gems:500},  evt:"secret" },
+  /* Ouvertures de boosters */
+  { id:"open25",   title:"Ouvre 25 boosters",             target:25, reward:{gems:180},  evt:"open" },
+  { id:"open50",   title:"Ouvre 50 boosters",             target:50, reward:{gems:300},  evt:"open" },
+  { id:"open100",  title:"Ouvre 100 boosters",            target:100,reward:{gems:500},  evt:"open" },
+  /* Pas */
+  { id:"walk3k",   title:"Fais 3 000 pas aujourd'hui",    target:3000, reward:{gems:35},           evt:"walk" },
+  { id:"walk5k",   title:"Fais 5 000 pas aujourd'hui",    target:5000, reward:{freePacks:1},        evt:"walk" },
+  { id:"walk10k",  title:"Fais 10 000 pas aujourd'hui",   target:10000,reward:{gems:80, freePacks:1}, evt:"walk" },
+  /* Personnages saison 1 */
+  { id:"yugi1",    title:"Ouvre 1 booster de Yugi",       target:1,  reward:{gems:30},   evt:"char:yugi" },
+  { id:"kaiba1",   title:"Ouvre 1 booster de Kaiba",      target:1,  reward:{gems:30},   evt:"char:kaiba" },
+  { id:"joey1",    title:"Ouvre 1 booster de Joey",       target:1,  reward:{gems:30},   evt:"char:joey" },
+  { id:"mai1",     title:"Ouvre 1 booster de Mai",        target:1,  reward:{gems:30},   evt:"char:mai" },
+  { id:"pegasus1", title:"Ouvre 1 booster de Pegasus",    target:1,  reward:{gems:30},   evt:"char:pegasus" },
+  /* Personnages GX */
+  { id:"jaden1",   title:"Ouvre 1 booster de Jaden",      target:1,  reward:{gems:30},   evt:"char:jaden" },
+  { id:"zane1",    title:"Ouvre 1 booster de Zane",       target:1,  reward:{gems:30},   evt:"char:zane" },
+  { id:"chazz1",   title:"Ouvre 1 booster de Chazz",      target:1,  reward:{gems:30},   evt:"char:chazz" },
+  { id:"jesse1",   title:"Ouvre 1 booster de Jesse",      target:1,  reward:{gems:30},   evt:"char:jesse" },
+  /* Personnages 5D's */
+  { id:"yusei1",   title:"Ouvre 1 booster de Yusei",      target:1,  reward:{gems:30},   evt:"char:yusei" },
+  { id:"jack1",    title:"Ouvre 1 booster de Jack",       target:1,  reward:{gems:30},   evt:"char:jack" },
+  { id:"crow1",    title:"Ouvre 1 booster de Crow",       target:1,  reward:{gems:30},   evt:"char:crow" },
+  /* Séries entières */
+  { id:"dm3",      title:"Ouvre 3 boosters Duel Monsters",target:3,  reward:{gems:60},   evt:"series:dm" },
+  { id:"gx3",      title:"Ouvre 3 boosters GX",           target:3,  reward:{gems:60},   evt:"series:gx" },
+  { id:"5ds3",     title:"Ouvre 3 boosters 5D's",         target:3,  reward:{gems:60},   evt:"series:5ds" },
+  { id:"allseries",title:"Ouvre 1 booster de chaque série",target:3, reward:{gems:200, freePacks:1}, evt:"series:each" },
+  /* Meta */
+  { id:"album1",   title:"Consulte l'album",              target:1,  reward:{gems:10},   evt:"album" },
+  { id:"detail3",  title:"Consulte 3 fiches de carte",    target:3,  reward:{gems:15},   evt:"detail" },
+  { id:"switch3",  title:"Change 3 fois de personnage",   target:3,  reward:{gems:20},   evt:"switch" },
+  /* Collection */
+  { id:"col20",    title:"Possède 20 cartes différentes", target:20, reward:{gems:40},   evt:"collection" },
+  { id:"col50",    title:"Possède 50 cartes différentes", target:50, reward:{gems:100},  evt:"collection" },
+  { id:"col100",   title:"Possède 100 cartes différentes",target:100,reward:{gems:250},  evt:"collection" },
+  /* Niveau */
+  { id:"lvl3",     title:"Atteins le niveau 3",           target:3,  reward:{gems:30},   evt:"level" },
+  { id:"lvl5",     title:"Atteins le niveau 5",           target:5,  reward:{gems:80},   evt:"level" }
+];
+const QUESTS_KEY = "duelAlbum_quests_v2";
+const DAILY_QUEST_COUNT = 5; // 5 quêtes différentes par jour
+function todayKey(){ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+/* PRNG seedé par la date pour que 2 joueurs ouvrant le jeu le même jour aient des quêtes différentes,
+   mais qu'un même joueur qui recharge la page voit les mêmes quêtes tant qu'on n'a pas changé de jour */
+function shuffleDaily(arr){
+  const seed = todayKey().split("-").reduce((a,b)=>a*31 + parseInt(b), Date.now() & 0xffff);
+  let s = seed;
+  const rnd = ()=>{ s = (s*9301 + 49297) % 233280; return s/233280; };
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function loadQuests(){
+  let q = null; try{ q = JSON.parse(localStorage.getItem(QUESTS_KEY)); }catch(e){}
+  if(!q || q.date !== todayKey()){
+    // Nouvelle rotation quotidienne
+    const pool = shuffleDaily(QUEST_DEFS).slice(0, DAILY_QUEST_COUNT);
+    q = { date:todayKey(), items: pool.map(p=>({ id:p.id, progress:0, claimed:false })) };
+    localStorage.setItem(QUESTS_KEY, JSON.stringify(q));
+  }
+  return q;
+}
+let quests = loadQuests();
+function saveQuests(){ localStorage.setItem(QUESTS_KEY, JSON.stringify(quests)); }
+function questDef(id){ return QUEST_DEFS.find(q=>q.id===id); }
+function renderQuests(){
+  const list = document.getElementById("questsList"); if(!list) return;
+  list.innerHTML = "";
+  let done = 0;
+  quests.items.forEach(item=>{
+    const def = questDef(item.id); if(!def) return;
+    const complete = item.progress >= def.target;
+    if(complete && item.claimed) done++;
+    const rewardStr = [
+      def.reward.gems ? `+${def.reward.gems}💎` : null,
+      def.reward.freePacks ? `<span class="r-pack">+${def.reward.freePacks} 🎁</span>` : null
+    ].filter(Boolean).join(" ");
+    const label = def.title.replace("{n}", def.target);
+    const row = document.createElement("div");
+    row.className = "quest-row" + (item.claimed ? " done" : "");
+    row.setAttribute("data-testid","quest-"+item.id);
+    row.innerHTML = `
+      <div class="quest-info">
+        <div class="quest-label">${label}</div>
+        <div class="quest-progress">
+          <div class="qbar"><div class="qfill" style="width:${Math.min(100, Math.round(100*item.progress/def.target))}%"></div></div>
+          <span>${Math.min(item.progress,def.target)}/${def.target}</span>
+        </div>
+      </div>
+      ${item.claimed
+        ? `<span class="quest-reward" style="opacity:.4;">✔ ${rewardStr}</span>`
+        : complete
+          ? `<button class="quest-claim" onclick="claimQuest('${item.id}')" data-testid="claim-${item.id}">Récupérer ${rewardStr}</button>`
+          : `<span class="quest-reward">${rewardStr}</span>`}`;
+    list.appendChild(row);
+  });
+  document.getElementById("questsDoneBadge").textContent = done + "/" + quests.items.length;
+  // FAB dot: nombre de quêtes réclamables (complètes mais pas claim)
+  const claimable = quests.items.filter(item=>{
+    const def = questDef(item.id);
+    return def && !item.claimed && item.progress >= def.target;
+  }).length;
+  const dot = document.getElementById("fabQuestsDot");
+  if(dot){
+    if(claimable > 0){ dot.textContent = claimable; dot.classList.remove("hidden-el"); }
+    else dot.classList.add("hidden-el");
+  }
+}
+
+function openQuestsScreen(){
+  renderQuests();
+  renderStreakInScreen();
+  goTo("questsScreen");
+}
+function renderStreakInScreen(){
+  const row = document.getElementById("streakRowScreen");
+  if(!row) return;
+  const s = loadDaily();
+  // Position "actuelle" dans la série (streak sauvegardé, ou 1 si première fois)
+  const cur = s.streak || 1;
+  row.innerHTML = "";
+  DAILY_REWARDS.forEach((r, i)=>{
+    const day = i+1;
+    const state = day < cur ? "done" : (day === cur ? "today" : "");
+    const icon = r.gems ? "💎" : "🎁";
+    const val = r.gems || (r.freePacks ? "1🎁" : "");
+    const bonus = r.freePacks && r.gems ? "+🎁" : "";
+    row.innerHTML += `<div class="streak-day ${state}">
+      <div class="sd-day">J${day}</div>
+      <div class="sd-icon">${icon}</div>
+      <div class="sd-val">${val}${bonus}</div>
+    </div>`;
+  });
+}
+function claimQuest(id){
+  const item = quests.items.find(i=>i.id===id); if(!item || item.claimed) return;
+  const def = questDef(id);
+  if(item.progress < def.target) return;
+  item.claimed = true;
+  if(def.reward.gems) addGems(def.reward.gems);
+  if(def.reward.freePacks){
+    stepState.freePacks = (stepState.freePacks||0) + def.reward.freePacks;
+    saveSteps(); renderSteps();
+  }
+  toast("Récompense reçue !");
+  saveQuests(); renderQuests();
+}
+function trackQuestEvent(evt, amount){
+  quests = loadQuests(); // rotation quotidienne éventuelle
+  const isAbsolute = (evt === "collection" || evt === "level");
+  let changed = false;
+  quests.items.forEach(item=>{
+    const def = questDef(item.id);
+    if(!def || item.claimed) return;
+    if(def.evt === evt){
+      if(isAbsolute){
+        const v = Math.min(def.target, amount||0);
+        if(v > item.progress){ item.progress = v; changed = true; }
+      } else {
+        item.progress = Math.min(def.target, item.progress + (amount||1));
+        changed = true;
+      }
+    }
+  });
+  if(changed){ saveQuests(); renderQuests(); }
+}
+
+/* ===== STEP COUNTER ===== */
+const STEPS_KEY = "duelAlbum_steps_v1";
+let stepState = loadSteps();
+function loadSteps(){
+  let s = null; try{ s = JSON.parse(localStorage.getItem(STEPS_KEY)); }catch(e){}
+  if(!s || s.date !== todayKey()) s = { date:todayKey(), steps:0, totalSteps:s?.totalSteps||0, freePacks:s?.freePacks||0, milestonesReached:0, enabled:s?.enabled||false };
+  if(typeof s.milestonesReached !== "number") s.milestonesReached = 0;
+  return s;
+}
+function saveSteps(){ localStorage.setItem(STEPS_KEY, JSON.stringify(stepState)); }
+
+// Paliers de pas (cumulatifs, réinitialisés chaque jour) :
+//   5 000 pas → +1 pack   (total: 1)
+//  10 000 pas → +1 pack   (total: 2)
+//  15 000 pas → +2 packs  (total: 4)
+//  20 000 pas → +1 pack   (total: 5)
+const STEP_MILESTONES = [
+  { steps: 5000,  reward: 1 },
+  { steps: 10000, reward: 1 },
+  { steps: 15000, reward: 2 },
+  { steps: 20000, reward: 1 }
+];
+function nextMilestone(){
+  const idx = stepState.milestonesReached || 0;
+  return STEP_MILESTONES[idx] || null;
+}
+function renderSteps(){
+  const nm = nextMilestone();
+  const totalReached = stepState.milestonesReached || 0;
+  let pct = 100;
+  let labelRight = "Tous les paliers du jour atteints !";
+  if(nm){
+    const prevSteps = totalReached > 0 ? STEP_MILESTONES[totalReached-1].steps : 0;
+    const spanSteps = nm.steps - prevSteps;
+    const progressInSpan = Math.max(0, stepState.steps - prevSteps);
+    pct = Math.min(100, Math.round((progressInSpan/spanSteps)*100));
+    labelRight = nm.steps.toLocaleString("fr-FR") + " pas → +" + nm.reward + " 🎁";
+  }
+  document.getElementById("stepsCount").textContent = stepState.steps.toLocaleString("fr-FR") + " pas";
+  document.getElementById("stepsFill").style.width = pct + "%";
+  const stepsLabel = document.querySelector(".step-label > span:nth-child(2)");
+  if(stepsLabel) stepsLabel.textContent = labelRight;
+  const fp = stepState.freePacks || 0;
+  const bd = document.getElementById("stepsFreeInfo");
+  if(fp > 0){ bd.classList.remove("hidden-el"); bd.textContent = fp + " booster" + (fp>1?"s":"") + " gratuit"+(fp>1?"s":""); }
+  else { bd.classList.add("hidden-el"); }
+  // Bouton d'activation motion
+  const btn = document.getElementById("enableMotionBtn");
+  if(btn){
+    if(stepState.enabled) btn.classList.add("hidden-el");
+    else btn.classList.remove("hidden-el");
+  }
+  // Free badge sur pack
+  let fb = document.getElementById("freeBadgeHome");
+  const pack = document.getElementById("packEl");
+  if(pack){
+    if(fp > 0){
+      if(!fb){
+        fb = document.createElement("div");
+        fb.id = "freeBadgeHome"; fb.className = "free-badge-home";
+        fb.setAttribute("data-testid","free-pack-badge");
+        pack.appendChild(fb);
+      }
+      fb.textContent = "GRATUIT ×"+fp;
+    } else if(fb){ fb.remove(); }
+  }
+}
+function addSteps(n){
+  stepState.steps += n;
+  stepState.totalSteps = (stepState.totalSteps||0) + n;
+  // Vérifier les paliers atteints
+  while(true){
+    const nm = nextMilestone();
+    if(!nm) break;
+    if(stepState.steps >= nm.steps){
+      stepState.freePacks = (stepState.freePacks||0) + nm.reward;
+      stepState.milestonesReached = (stepState.milestonesReached||0) + 1;
+      toast("🎁 +" + nm.reward + " booster" + (nm.reward>1?"s":"") + " gratuit" + (nm.reward>1?"s":"") + " ! (" + nm.steps.toLocaleString("fr-FR") + " pas)");
+    } else break;
+  }
+  saveSteps(); renderSteps();
+  trackQuestEvent("walk", n);
+}
+
+/* Détection basique de pas via accéléromètre */
+let motionState = { lastMag:0, lastPeak:0, warmup:true };
+function onMotion(e){
+  const a = e.accelerationIncludingGravity || e.acceleration;
+  if(!a) return;
+  const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+  const now = Date.now();
+  if(motionState.warmup){ motionState.warmup=false; motionState.lastMag=mag; return; }
+  const delta = Math.abs(mag - motionState.lastMag);
+  motionState.lastMag = mag;
+  // Pic > 2.5 m/s² et cooldown 350ms
+  if(delta > 2.5 && now - motionState.lastPeak > 350){
+    motionState.lastPeak = now;
+    addSteps(1);
+  }
+}
+function enableMotion(){
+  const start = ()=>{
+    window.addEventListener("devicemotion", onMotion, false);
+    stepState.enabled = true; saveSteps(); renderSteps();
+    toast("Compteur activé — marchez 🚶");
+  };
+  // iOS 13+
+  if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+    DeviceMotionEvent.requestPermission().then(r => {
+      if(r === "granted") start();
+      else toast("Permission refusée");
+    }).catch(()=> toast("Impossible d'activer le capteur"));
+  } else if(typeof DeviceMotionEvent !== "undefined"){
+    start();
+  } else {
+    toast("Capteur non disponible sur cet appareil");
+  }
+}
+
+/* Bouton test dev : simule des pas (double-tap sur l'icône 👟) */
+document.addEventListener("DOMContentLoaded", ()=>{
+  const ico = document.querySelector(".step-icon");
+  if(ico){
+    let last = 0;
+    ico.addEventListener("click", ()=>{
+      const n = Date.now();
+      if(n - last < 500){ addSteps(500); toast("+500 pas (démo)"); }
+      last = n;
+    });
+  }
+  renderQuests();
+  renderSteps();
+});
+
+/* ===== DAILY LOGIN REWARDS ===== */
+const DAILY_KEY = "duelAlbum_daily_v1";
+const DAILY_REWARDS = [
+  { gems:50 },                     // Jour 1
+  { gems:60 },                     // Jour 2
+  { gems:100 },                    // Jour 3
+  { gems:100 },                    // Jour 4
+  { gems:200 },                    // Jour 5
+  { gems:200 },                    // Jour 6
+  { gems:500, freePacks:1 }        // Jour 7 (gros lot)
+];
+function yesterdayKey(){ const d=new Date(); d.setDate(d.getDate()-1); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+function loadDaily(){
+  let s = null; try{ s = JSON.parse(localStorage.getItem(DAILY_KEY)); }catch(e){}
+  return s || { lastClaim:null, streak:0 };
+}
+function saveDaily(s){ localStorage.setItem(DAILY_KEY, JSON.stringify(s)); }
+function maybeShowDailyReward(){
+  const s = loadDaily();
+  const today = todayKey();
+  if(s.lastClaim === today) return; // déjà réclamé aujourd'hui
+  // Calcule la nouvelle position dans la série
+  const yest = yesterdayKey();
+  let newStreak = (s.lastClaim === yest) ? (s.streak + 1) : 1;
+  if(newStreak > 7) newStreak = 1;
+  showDailyModal(newStreak);
+}
+function showDailyModal(streak){
+  const row = document.getElementById("dailyStreakRow");
+  row.innerHTML = "";
+  DAILY_REWARDS.forEach((r, i)=>{
+    const day = i+1;
+    const state = day < streak ? "done" : (day === streak ? "today" : "");
+    const icon = r.gems ? "💎" : "🎁";
+    const val = r.gems || (r.freePacks ? "1🎁" : "");
+    const bonus = r.freePacks && r.gems ? "+🎁" : "";
+    row.innerHTML += `<div class="streak-day ${state}" data-testid="streak-day-${day}">
+      <div class="sd-day">J${day}</div>
+      <div class="sd-icon">${icon}</div>
+      <div class="sd-val">${val}${bonus}</div>
+    </div>`;
+  });
+  const r = DAILY_REWARDS[streak-1];
+  const parts = [];
+  if(r.gems) parts.push("+" + r.gems + " 💎");
+  if(r.freePacks) parts.push("+" + r.freePacks + " 🎁 booster gratuit");
+  document.getElementById("dailyStreakSub").textContent = "Jour " + streak + " de ta série · reviens demain pour continuer";
+  document.getElementById("dailyRewardText").innerHTML = "Aujourd'hui : <b>" + parts.join(" · ") + "</b>";
+  document.getElementById("dailyModal").classList.add("show");
+  document.getElementById("dailyModal").dataset.streak = streak;
+}
+function claimDailyReward(){
+  const streak = parseInt(document.getElementById("dailyModal").dataset.streak, 10) || 1;
+  const r = DAILY_REWARDS[streak-1];
+  if(r.gems) addGems(r.gems);
+  if(r.freePacks){
+    stepState.freePacks = (stepState.freePacks||0) + r.freePacks;
+    saveSteps(); renderSteps();
+  }
+  const s = loadDaily();
+  s.lastClaim = todayKey();
+  s.streak = streak;
+  saveDaily(s);
+  document.getElementById("dailyModal").classList.remove("show");
+  toast("Récompense reçue !");
+}
+
+/* ===== DUPLICATE → GEMS (auto-conversion à l'obtention) ===== */
+const DUPE_VALUE = { Commune:10, Rare:25, Super:50, Ultra:100, Secret:200 };
+let pendingDuplicateGems = 0;
+// Legacy: si un joueur a déjà des doublons stockés (count > 1) en localStorage,
+// on les convertit automatiquement au chargement.
+function autoConvertLegacyDuplicates(){
+  let gain = 0;
+  Object.keys(collection).forEach(id=>{
+    const entry = collection[id];
+    if(entry && entry.count && entry.count > 1){
+      const extra = entry.count - 1;
+      gain += (DUPE_VALUE[entry.rarity] || 10) * extra;
+      entry.count = 1;
+    }
+  });
+  if(gain > 0){ addGems(gain); saveCollection(); toast("+" + gain + "💎 (anciens doublons convertis)"); }
+}
+
+/* ===== DECK BUILDER ===== */
+const DECKS_KEY = "duelAlbum_decks_v1";
+let currentDeck = { name:"Nouveau deck", cards:[] };
+
+function openDeckBuilder(){
+  currentDeck = { name:"Nouveau deck", cards:[] };
+  renderDeckBuilder();
+  goTo("deckBuilder");
+}
+function cardByIdAny(id){
+  return allCards.find(c=>c.id===id)
+      || Object.values(characterPools).flat().find(c=>c && c.id===id)
+      || (collection[id] && { ...collection[id], id });
+}
+function renderDeckBuilder(){
+  // En-tête
+  document.getElementById("dbCurrentName").textContent = currentDeck.name;
+  const n = currentDeck.cards.length;
+  const countEl = document.getElementById("dbCount");
+  countEl.textContent = n + "/40 cartes";
+  countEl.className = "db-stat " + (n >= 40 && n <= 60 ? "ok" : (n > 60 ? "warn" : ""));
+
+  // Grille du deck en cours
+  const grid = document.getElementById("dbCurrentGrid");
+  grid.innerHTML = "";
+  currentDeck.cards.forEach((id, idx)=>{
+    const c = cardByIdAny(id);
+    const div = document.createElement("div");
+    div.className = "db-slot";
+    div.setAttribute("data-testid","deck-slot-"+idx);
+    div.innerHTML = c ? `<img src="${c.image}" alt=""><div class="rem">×</div>` : `<div style="color:#8d87b8;font-size:10px;">?</div>`;
+    div.onclick = ()=> removeFromDeck(idx);
+    grid.appendChild(div);
+  });
+  // Slots vides
+  for(let i=n;i<40;i++){
+    const div = document.createElement("div");
+    div.className = "db-slot empty";
+    grid.appendChild(div);
+  }
+
+  // Grille collection
+  const cgrid = document.getElementById("dbCollectionGrid");
+  cgrid.innerHTML = "";
+  const ownedList = Object.entries(collection).map(([id,e])=>({id:parseInt(id), ...e}))
+    .sort((a,b)=> (RARITY_WEIGHT[b.rarity]-RARITY_WEIGHT[a.rarity]) || a.name.localeCompare(b.name));
+  if(ownedList.length === 0){
+    cgrid.innerHTML = `<div class="db-empty" style="grid-column:1/-1;">Aucune carte encore.<br>Ouvre des boosters pour construire ton deck.</div>`;
+    return;
+  }
+  ownedList.forEach(entry=>{
+    const inDeck = currentDeck.cards.filter(id=>id===entry.id).length;
+    const maxCopies = 3; // Standard YGO: max 3 exemplaires par carte
+    const maxed = inDeck >= maxCopies;
+    const div = document.createElement("div");
+    div.className = "db-col-card" + (maxed ? " maxed" : "");
+    div.setAttribute("data-testid","db-add-"+entry.id);
+    div.innerHTML = `<img src="${entry.image}" alt="${entry.name}">
+      ${inDeck > 0 ? `<div class="in-deck">Deck ${inDeck}/3</div>` : ""}`;
+    div.onclick = ()=> addToDeck(entry.id);
+    cgrid.appendChild(div);
+  });
+}
+function addToDeck(id){
+  const entry = collection[id];
+  if(!entry) return;
+  const inDeck = currentDeck.cards.filter(x=>x===id).length;
+  if(inDeck >= 3){ toast("Maximum 3 exemplaires par carte"); return; }
+  if(currentDeck.cards.length >= 60){ toast("Deck plein (60 cartes max)"); return; }
+  currentDeck.cards.push(id);
+  renderDeckBuilder();
+}
+function removeFromDeck(idx){
+  currentDeck.cards.splice(idx,1);
+  renderDeckBuilder();
+}
+function clearDeck(){
+  if(!currentDeck.cards.length) return;
+  if(!confirm("Vider le deck en cours ?")) return;
+  currentDeck.cards = [];
+  renderDeckBuilder();
+}
+function loadDecks(){ try{ return JSON.parse(localStorage.getItem(DECKS_KEY)) || []; }catch(e){ return []; } }
+function saveDecks(list){ localStorage.setItem(DECKS_KEY, JSON.stringify(list)); }
+function saveCurrentDeck(){
+  const n = currentDeck.cards.length;
+  if(n === 0){ toast("Ajoute au moins une carte au deck"); return; }
+  if(n > 60){ toast("Maximum 60 cartes"); return; }
+  // Le format officiel demande 40 à 60 cartes, mais on n'empêche plus la
+  // sauvegarde en dessous : avec une petite collection, ce blocage rendait
+  // le deck builder inutilisable. On sauvegarde quand même, en prévenant.
+  if(n < 40){
+    if(!confirm("Ton deck n'a que " + n + " carte(s) sur 40 minimum. Le sauvegarder quand même comme brouillon ?")) return;
+  }
+  const name = prompt("Nom du deck ?", currentDeck.name || "Mon deck");
+  if(!name) return;
+  const decks = loadDecks();
+  decks.push({ name, cards:[...currentDeck.cards], savedAt:Date.now() });
+  saveDecks(decks);
+  currentDeck.name = name;
+  renderDeckBuilder();
+  toast("Deck sauvegardé");
+}
+function openSavedDecks(){
+  const decks = loadDecks();
+  const list = document.getElementById("savedDecksList");
+  list.innerHTML = "";
+  if(decks.length === 0){
+    list.innerHTML = `<div class="db-empty">Aucun deck sauvegardé.<br>Construis-en un dans le Deck Builder.</div>`;
+  } else {
+    decks.forEach((d, idx)=>{
+      const row = document.createElement("div");
+      row.className = "saved-deck-item";
+      row.setAttribute("data-testid","saved-deck-"+idx);
+      const date = new Date(d.savedAt).toLocaleDateString("fr-FR");
+      row.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div class="sd-name">${d.name}</div>
+          <div class="sd-count">${d.cards.length} cartes · ${date}</div>
+        </div>
+        <div class="sd-actions">
+          <button class="sd-load" onclick="loadDeckByIndex(${idx})">Charger</button>
+          <button class="sd-del" onclick="deleteDeckByIndex(${idx})">✕</button>
+        </div>`;
+      list.appendChild(row);
+    });
+  }
+  goTo("savedDecks");
+}
+function loadDeckByIndex(idx){
+  const decks = loadDecks();
+  const d = decks[idx]; if(!d) return;
+  currentDeck = { name:d.name, cards:[...d.cards] };
+  renderDeckBuilder();
+  goTo("deckBuilder");
+}
+function deleteDeckByIndex(idx){
+  if(!confirm("Supprimer ce deck ?")) return;
+  const decks = loadDecks();
+  decks.splice(idx,1);
+  saveDecks(decks);
+  openSavedDecks();
+}
+
+/* ===== Init ===== */
+loadCards();
+refreshHud();
+setTimeout(maybeShowDailyReward, 800);
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
